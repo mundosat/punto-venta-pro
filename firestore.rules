@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function me() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return signedIn() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && me().activo == true;
+    }
+
+    function isAdmin() {
+      return isActive() && me().rol == 'admin';
+    }
+
+    function isCashier() {
+      return isActive() && (me().rol == 'admin' || me().rol == 'cajero');
+    }
+
+    match /usuarios/{userId} {
+      allow read: if isActive();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /configuracion/{docId} {
+      allow read: if isCashier();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /productos/{docId} {
+      allow read: if isCashier();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /kardex/{docId} {
+      allow read: if isCashier();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /ventas/{docId} {
+      allow read: if isCashier();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+
+    match /cajas_sesiones/{docId} {
+      allow read: if isCashier();
+      allow create: if isCashier();
+      allow update: if isCashier();
+      allow delete: if isAdmin();
+    }
+
+    match /movimientos_caja/{docId} {
+      allow read: if isCashier();
+      allow create: if isCashier();
+      allow update, delete: if isAdmin();
+    }
+  }
+}

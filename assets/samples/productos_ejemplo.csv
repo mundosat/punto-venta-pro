@@ -1,0 +1,4 @@
+codigo,nombre,categoria,precio,stock,minimo,activo
+P001,Arroz 5kg,Granos,24.50,10,2,true
+P002,Azucar 1kg,Abarrotes,2.10,30,5,true
+P003,Aceite 900ml,Abarrotes,3.85,18,4,true
