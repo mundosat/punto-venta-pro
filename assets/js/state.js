@@ -19,5 +19,7 @@ export const state = {
   clients: [],
   selectedClientId: "final",
   cart: [],
-  activeCashSession: null
+  activeCashSession: null,
+  saleSearchQuery: "",
+  salesSearchFocusedIndex: 0
 };

@@ -155,20 +155,43 @@ export function renderCaja({ session = null, movements = [], sales = [] }) {
 }
 
 export function renderVentas({ products = [], cart = [], clients = [], selectedClientId = "final" }) {
-  const cards = products
-    .filter(p => p.activo !== false)
-    .map(p => `
-      <button class="product-chip" data-add-product="${p.id}" data-product-name="${escapeHtml(p.nombre)}" data-product-code="${escapeHtml(p.codigo || "")}">
-        <div class="product-chip-name">${escapeHtml(p.nombre)}</div>
-        <div class="product-chip-meta">${escapeHtml(p.codigo || "Sin código")}</div>
-        <div class="product-chip-price">${currency(p.precio, state.config.moneda)}</div>
-      </button>
-    `).join("");
+  const query = (state.saleSearchQuery || "").trim().toLowerCase();
+  const activeProducts = products.filter(p => p.activo !== false);
+  const scored = query
+    ? activeProducts.map(p => {
+        const nombre = String(p.nombre || "").toLowerCase();
+        const codigo = String(p.codigo || "").toLowerCase();
+        const exactCode = codigo === query ? 100 : 0;
+        const startsName = nombre.startsWith(query) ? 60 : 0;
+        const startsCode = codigo.startsWith(query) ? 55 : 0;
+        const includesName = nombre.includes(query) ? 25 : 0;
+        const includesCode = codigo.includes(query) ? 20 : 0;
+        const score = exactCode + startsName + startsCode + includesName + includesCode;
+        return { p, score };
+      }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || String(a.p.nombre || "").localeCompare(String(b.p.nombre || "")))
+    : [];
+  const visibleResults = scored.slice(0, 12);
+  const searchResults = query
+    ? visibleResults.length
+      ? visibleResults.map(({ p }, idx) => `
+        <button class="product-search-item ${idx === 0 ? 'is-active' : ''}" type="button" data-search-product="${p.id}">
+          <div class="product-search-main">
+            <strong>${escapeHtml(p.nombre || "Producto")}</strong>
+            <span class="product-search-code">${escapeHtml(p.codigo || "Sin código")}</span>
+          </div>
+          <div class="product-search-side">
+            <span class="product-search-stock">Stock: ${Number(p.stock || 0)}</span>
+            <span class="product-search-price">${currency(p.precio, state.config.moneda)}</span>
+          </div>
+        </button>`).join("")
+      : `<div class="search-empty">No se encontraron productos para <strong>${escapeHtml(state.saleSearchQuery || "")}</strong>.</div>`
+    : `<div class="search-hint">Escribe el nombre, código o escanea el producto. También puedes presionar <strong>Enter</strong> para agregar el primer resultado.</div>`;
 
   const clientOptions = [`<option value="final">Consumidor Final</option>`]
     .concat(clients.map(c => `<option value="${c.id}" ${selectedClientId === c.id ? 'selected' : ''}>${escapeHtml(c.nombre || 'Cliente')}</option>`))
     .join("");
 
+  const selectedClient = selectedClientId === 'final' ? null : clients.find(c => c.id === selectedClientId);
   const subtotal = cart.reduce((a, i) => a + Number(i.total || 0), 0);
   const impuesto = subtotal * (Number(state.config.impuesto || 0) / 100);
   const total = subtotal + impuesto;
@@ -198,11 +221,11 @@ export function renderVentas({ products = [], cart = [], clients = [], selectedC
     `)}
 
     <div class="pos-layout">
-      <section class="card">
-        <div class="grid grid-2">
-          <div class="form-group">
+      <section class="card sales-left-panel">
+        <div class="grid grid-2 sales-header-grid">
+          <div class="form-group search-group">
             <label>Buscar producto</label>
-            <input class="input" id="buscarProducto" placeholder="Nombre, código o escaneo" autocomplete="off" />
+            <input class="input" id="buscarProducto" placeholder="Nombre, código o escaneo" autocomplete="off" value="${escapeHtml(state.saleSearchQuery || "")}" />
           </div>
           <div class="form-group">
             <label>Cliente</label>
@@ -213,8 +236,24 @@ export function renderVentas({ products = [], cart = [], clients = [], selectedC
           </div>
         </div>
 
+        <div class="client-summary ${selectedClient ? '' : 'muted'}" id="clientSummary">
+          ${selectedClient ? `Cliente: <strong>${escapeHtml(selectedClient.nombre || '')}</strong> · ${escapeHtml(selectedClient.identificacion || 'Sin identificación')}` : 'Cliente actual: <strong>Consumidor Final</strong>'}
+        </div>
+
+        <div class="search-results-card mt16">
+          <div class="search-results-head">
+            <h3 class="m0">Resultados</h3>
+            <span class="search-results-count">${query ? `${visibleResults.length} resultado(s)` : 'Listo para buscar'}</span>
+          </div>
+          <div class="search-results-list" id="listaProductos">${searchResults}</div>
+        </div>
+
         <div class="quick-sale-card mt16">
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div class="quick-sale-head">
+            <h3 class="m0">Venta rápida</h3>
+            <span class="muted">Para productos no registrados</span>
+          </div>
+          <div class="quick-sale-grid mt12">
             <input class="input" id="ventaRapidaNombre" placeholder="Producto rápido">
             <input class="input" id="ventaRapidaPrecio" type="number" placeholder="Precio">
             <input class="input" id="ventaRapidaCantidad" type="number" value="1" min="1">
@@ -222,8 +261,21 @@ export function renderVentas({ products = [], cart = [], clients = [], selectedC
           </div>
         </div>
 
-        <div class="product-grid mt16" id="listaProductos">
-          ${cards || '<div class="alert alert-info">No hay productos activos.</div>'}
+        <button class="calc-fab" type="button" id="btnOpenCalc" title="Calculadora">🧮</button>
+        <div class="calc-panel hidden" id="calcPanel">
+          <div class="calc-head">
+            <strong>Calculadora</strong>
+            <button class="calc-close" type="button" id="btnCloseCalc">×</button>
+          </div>
+          <input class="input calc-display" id="calcDisplay" type="text" readonly value="" />
+          <div class="calc-grid">
+            <button type="button" data-calc="7">7</button><button type="button" data-calc="8">8</button><button type="button" data-calc="9">9</button><button type="button" data-calc="/">÷</button>
+            <button type="button" data-calc="4">4</button><button type="button" data-calc="5">5</button><button type="button" data-calc="6">6</button><button type="button" data-calc="*">×</button>
+            <button type="button" data-calc="1">1</button><button type="button" data-calc="2">2</button><button type="button" data-calc="3">3</button><button type="button" data-calc="-">−</button>
+            <button type="button" data-calc="0">0</button><button type="button" data-calc=".">.</button><button type="button" id="btnCalcEquals">=</button><button type="button" data-calc="+">+</button>
+            <button type="button" class="span-2" id="btnCalcClear">Limpiar</button>
+            <button type="button" class="span-2 btn btn-primary" id="btnCalcToQuickSale">Usar en precio</button>
+          </div>
         </div>
       </section>
 
@@ -250,8 +302,8 @@ export function renderVentas({ products = [], cart = [], clients = [], selectedC
           </div>
 
           <div class="toolbar mt16">
-            <button class="btn btn-primary" id="btnCobrarImprimir">Cobrar e imprimir</button>
-            <button class="btn btn-secondary" id="btnCobrarSinImprimir">Cobrar sin imprimir</button>
+            <button class="btn btn-primary btn-block" id="btnCobrarImprimir">Cobrar e imprimir</button>
+            <button class="btn btn-secondary btn-block" id="btnCobrarSinImprimir">Cobrar sin imprimir</button>
           </div>
         </div>
       </section>

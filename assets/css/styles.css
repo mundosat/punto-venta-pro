@@ -144,3 +144,43 @@ img{max-width:100%}
 .product-chip-name{font-weight:700;font-size:1rem;line-height:1.2}
 .product-chip-meta{color:var(--muted);font-size:.88rem;margin-top:8px;word-break:break-word}
 .product-chip-price{margin-top:12px;font-size:1.05rem;font-weight:800;color:#86efac}
+
+
+/* POS ventas profesional */
+.sales-left-panel{position:relative;overflow:visible}
+.sales-header-grid{align-items:end}
+.search-group{position:relative}
+.client-summary{margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(15,23,42,.55);color:var(--muted)}
+.client-summary strong{color:var(--text)}
+.search-results-card{border:1px solid var(--line);border-radius:18px;background:rgba(11,18,32,.72);overflow:hidden}
+.search-results-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.search-results-count{color:var(--muted);font-size:.9rem}
+.search-results-list{display:flex;flex-direction:column;max-height:360px;overflow:auto}
+.product-search-item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;background:transparent;border:0;border-bottom:1px solid rgba(148,163,184,.12);color:var(--text);text-align:left;cursor:pointer;transition:background .18s ease, transform .18s ease}
+.product-search-item:last-child{border-bottom:0}
+.product-search-item:hover,.product-search-item.is-active{background:rgba(34,197,94,.12)}
+.product-search-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.product-search-main strong{font-size:1rem;line-height:1.2}
+.product-search-code{font-size:.86rem;color:var(--muted)}
+.product-search-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;white-space:nowrap}
+.product-search-stock{font-size:.82rem;color:var(--muted)}
+.product-search-price{font-size:1rem;font-weight:800;color:#86efac}
+.search-hint,.search-empty{padding:18px 16px;color:var(--muted)}
+.quick-sale-card{background:rgba(11,18,32,.7);border:1px dashed var(--line);border-radius:18px;padding:14px}
+.quick-sale-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.quick-sale-grid{display:grid;grid-template-columns:2fr 1fr .7fr auto;gap:10px}
+.calc-fab{position:absolute;right:18px;bottom:18px;width:58px;height:58px;border-radius:999px;border:0;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;font-size:26px;box-shadow:0 16px 40px rgba(34,197,94,.3);cursor:pointer}
+.calc-panel{position:absolute;right:18px;bottom:88px;width:280px;background:#08101d;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:0 24px 60px rgba(2,6,23,.45);z-index:30}
+.calc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.calc-close{background:transparent;border:0;color:var(--text);font-size:24px;cursor:pointer}
+.calc-display{margin-bottom:10px;text-align:right;font-size:1.1rem}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.calc-grid button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:#0b1220;color:var(--text);cursor:pointer}
+.calc-grid .span-2{grid-column:span 2}
+.hidden{display:none!important}
+.product-card,.product-chip{display:none!important}
+@media (max-width: 1100px){
+  .quick-sale-grid{grid-template-columns:1fr}
+  .calc-panel{right:0;left:0;bottom:76px;width:auto}
+  .calc-fab{right:12px;bottom:12px}
+}

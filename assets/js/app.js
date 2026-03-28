@@ -224,14 +224,20 @@ function showOpenCashModal() {
 }
 
 function bindVentas() {
-  document.querySelectorAll("[data-add-product]").forEach(btn => {
+  const addProductAndRefresh = (product) => {
+    if (!product) return;
+    if (Number(product.stock || 0) <= 0) return alert("No hay stock disponible.");
+    addToCart(product);
+    state.saleSearchQuery = "";
+    state.salesSearchFocusedIndex = 0;
+    renderApp();
+  };
+
+  document.querySelectorAll("[data-search-product]").forEach(btn => {
     btn.onclick = () => {
-      const id = btn.getAttribute("data-add-product");
+      const id = btn.getAttribute("data-search-product");
       const product = state.products.find(p => p.id === id);
-      if (!product) return;
-      if (Number(product.stock || 0) <= 0) return alert("No hay stock disponible.");
-      addToCart(product);
-      renderApp();
+      addProductAndRefresh(product);
     };
   });
 
@@ -289,6 +295,7 @@ function bindVentas() {
     clientSelect.value = state.selectedClientId || "final";
     clientSelect.onchange = () => {
       state.selectedClientId = clientSelect.value || "final";
+      renderApp();
     };
   }
 
@@ -317,33 +324,127 @@ function bindVentas() {
   }
 
   const search = document.getElementById("buscarProducto");
+  const resultsContainer = document.getElementById("listaProductos");
+  const getMatches = (rawQuery) => {
+    const q = String(rawQuery || "").trim().toLowerCase();
+    if (!q) return [];
+    return state.products
+      .filter(p => p.activo !== false)
+      .map(product => {
+        const name = String(product.nombre || "").toLowerCase();
+        const code = String(product.codigo || "").toLowerCase();
+        const score =
+          (code === q ? 100 : 0) +
+          (name.startsWith(q) ? 60 : 0) +
+          (code.startsWith(q) ? 55 : 0) +
+          (name.includes(q) ? 25 : 0) +
+          (code.includes(q) ? 20 : 0);
+        return { product, score };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score || String(a.product.nombre || "").localeCompare(String(b.product.nombre || "")))
+      .slice(0, 12);
+  };
+
+  const updateSearchResults = () => {
+    if (!search || !resultsContainer) return [];
+    const matches = getMatches(search.value);
+    state.saleSearchQuery = search.value;
+    state.salesSearchFocusedIndex = 0;
+    if (!search.value.trim()) {
+      resultsContainer.innerHTML = '<div class="search-hint">Escribe el nombre, código o escanea el producto. También puedes presionar <strong>Enter</strong> para agregar el primer resultado.</div>';
+      return [];
+    }
+    if (!matches.length) {
+      resultsContainer.innerHTML = `<div class="search-empty">No se encontraron productos para <strong>${escapeHtml(search.value)}</strong>.</div>`;
+      return [];
+    }
+    resultsContainer.innerHTML = matches.map((item, index) => {
+      const p = item.product;
+      return `
+        <button class="product-search-item ${index === 0 ? 'is-active' : ''}" type="button" data-search-product="${p.id}">
+          <div class="product-search-main">
+            <strong>${escapeHtml(p.nombre || 'Producto')}</strong>
+            <span class="product-search-code">${escapeHtml(p.codigo || 'Sin código')}</span>
+          </div>
+          <div class="product-search-side">
+            <span class="product-search-stock">Stock: ${Number(p.stock || 0)}</span>
+            <span class="product-search-price">${state.config.moneda}${Number(p.precio || 0).toFixed(2)}</span>
+          </div>
+        </button>`;
+    }).join('');
+    document.querySelectorAll("[data-search-product]").forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute("data-search-product");
+        const product = state.products.find(p => p.id === id);
+        addProductAndRefresh(product);
+      };
+    });
+    return matches;
+  };
+
   if (search) {
-    const applySearch = () => {
-      const q = search.value.trim().toLowerCase();
-      const cards = [...document.querySelectorAll("[data-add-product]")];
-      let firstVisible = null;
-      cards.forEach(card => {
-        const name = (card.getAttribute("data-product-name") || "").toLowerCase();
-        const code = (card.getAttribute("data-product-code") || "").toLowerCase();
-        const visible = !q || name.includes(q) || code.includes(q) || `${name} ${code}`.includes(q);
-        card.classList.toggle("hidden", !visible);
-        if (visible && !firstVisible) firstVisible = card;
-      });
-      return firstVisible;
-    };
-    search.oninput = applySearch;
-    search.onkeydown = (e) => {
-      if (e.key === "Enter") {
-        const firstVisible = applySearch();
-        if (firstVisible) {
-          e.preventDefault();
-          firstVisible.click();
-          search.select();
-        }
+    search.focus();
+    search.oninput = () => {
+      updateSearchResults();
+      const exactMatch = state.products.find(p => String(p.codigo || '').toLowerCase() === search.value.trim().toLowerCase());
+      if (exactMatch && search.value.trim().length >= 4) {
+        // commonly barcode scanners end with Enter, but for exact code matches we also show single item immediately
       }
     };
-    applySearch();
+    search.onkeydown = (e) => {
+      const matches = getMatches(search.value);
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const exact = matches.find(item => String(item.product.codigo || '').toLowerCase() === search.value.trim().toLowerCase()
+          || String(item.product.nombre || '').toLowerCase() === search.value.trim().toLowerCase());
+        addProductAndRefresh((exact || matches[0])?.product);
+      }
+      if (e.key === "Escape") {
+        search.value = "";
+        state.saleSearchQuery = "";
+        updateSearchResults();
+      }
+    };
+    updateSearchResults();
   }
+
+  setupVentasCalculator();
+}
+
+function setupVentasCalculator() {
+  const panel = document.getElementById('calcPanel');
+  const openBtn = document.getElementById('btnOpenCalc');
+  const closeBtn = document.getElementById('btnCloseCalc');
+  const display = document.getElementById('calcDisplay');
+  const quickPrice = document.getElementById('ventaRapidaPrecio');
+  if (!panel || !openBtn || !display) return;
+  let expr = '';
+  const refresh = () => { display.value = expr; };
+  openBtn.onclick = () => panel.classList.toggle('hidden');
+  if (closeBtn) closeBtn.onclick = () => panel.classList.add('hidden');
+  document.querySelectorAll('[data-calc]').forEach(btn => {
+    btn.onclick = () => {
+      expr += btn.getAttribute('data-calc') || '';
+      refresh();
+    };
+  });
+  const clearBtn = document.getElementById('btnCalcClear');
+  if (clearBtn) clearBtn.onclick = () => { expr = ''; refresh(); };
+  const eqBtn = document.getElementById('btnCalcEquals');
+  if (eqBtn) eqBtn.onclick = () => {
+    try {
+      expr = String(Function(`"use strict"; return (${expr || '0'})`)());
+      refresh();
+    } catch {
+      alert('Operación inválida.');
+    }
+  };
+  const sendBtn = document.getElementById('btnCalcToQuickSale');
+  if (sendBtn) sendBtn.onclick = () => {
+    if (quickPrice) quickPrice.value = expr || quickPrice.value || '';
+    panel.classList.add('hidden');
+  };
 }
 
 async function showClientModal() {
