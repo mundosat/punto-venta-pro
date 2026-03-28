@@ -39,7 +39,12 @@ onAuthStateChanged(auth, async (user) => {
     app.innerHTML = renderLogin();
     bindLogin("No se pudo cargar el sistema. Revisa tu configuración de Firebase.");
   }
-});
+}finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
 async function refreshBootstrap() {
   state.userProfile = await getUserProfile(state.currentUser.uid);
@@ -79,7 +84,12 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     } catch {}
   }
-});
+}finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
 async function renderApp() {
   state.currentView = (window.location.hash.replace("#", "") || "inicio");
@@ -93,29 +103,69 @@ async function renderApp() {
 
   if (view === "inicio") {
     const sales = await listSales().catch(() => []);
-    content = renderInicio({ sales, products: state.products, cashSession: state.activeCashSession });
+    content = renderInicio({ sales, products: state.products, cashSession: state.activeCashSession }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   } else if (view === "caja") {
     const movements = state.activeCashSession ? await listCashMovements(state.activeCashSession.id).catch(() => []) : [];
     const sales = await getSessionSales();
-    content = renderCaja({ session: state.activeCashSession, movements, sales });
+    content = renderCaja({ session: state.activeCashSession, movements, sales }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   } else if (view === "ventas") {
-    content = renderVentas({ products: state.products, cart: state.cart, clients: state.clients, selectedClientId: state.selectedClientId });
+    content = renderVentas({ products: state.products, cart: state.cart, clients: state.clients, selectedClientId: state.selectedClientId }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   } else if (view === "productos") {
-    content = renderProductos({ products: state.products });
+    content = renderProductos({ products: state.products }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   } else if (view === "kardex") {
     const items = await listKardex().catch(() => []);
-    content = renderKardex({ items });
+    content = renderKardex({ items }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   } else if (view === "usuarios") {
     const users = await listUsers().catch(() => []);
     state.cachedUsers = users;
-    content = renderUsuarios({ users });
+    content = renderUsuarios({ users }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   } else if (view === "reportes") {
     const sales = await listSales().catch(() => []);
-    content = renderReportes({ sales, products: state.products });
+    content = renderReportes({ sales, products: state.products }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   } else if (view === "configuracion") {
     content = renderConfiguracion();
   } else {
-    content = renderInicio({ sales: [], products: state.products, cashSession: state.activeCashSession });
+    content = renderInicio({ sales: [], products: state.products, cashSession: state.activeCashSession }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   }
 
   app.innerHTML = renderLayout(content);
@@ -144,7 +194,12 @@ async function getSessionSales() {
   return all.filter(s => {
     const t = s.fecha?.toDate ? s.fecha.toDate().getTime() : new Date(s.fecha).getTime();
     return t >= openAt;
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 }
 
 function bindCaja() {
@@ -168,7 +223,12 @@ function bindCaja() {
           concepto,
           usuarioId: state.userProfile.id,
           usuarioNombre: state.userProfile.nombre
-        });
+        }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
         await renderApp();
       } catch (err) {
         console.error(err);
@@ -188,7 +248,12 @@ function bindCaja() {
       const totalVentas = sales.reduce((a, s) => a + Number(s.total || 0), 0);
       const montoFinal = Number(state.activeCashSession.montoInicial || 0) + ingresos + totalVentas - egresos;
       if (!confirm(`¿Cerrar caja con total estimado ${state.config.moneda}${montoFinal.toFixed(2)}?`)) return;
-      await closeCashSession(state.activeCashSession, { ingresos, egresos, totalVentas, montoFinal });
+      await closeCashSession(state.activeCashSession, { ingresos, egresos, totalVentas, montoFinal }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
       state.activeCashSession = null;
       await renderApp();
     };
@@ -211,7 +276,12 @@ function showOpenCashModal() {
   document.getElementById("confirmOpenCash").onclick = async () => {
     try {
       const montoInicial = toNumber(document.getElementById("cashOpenAmount").value);
-      state.activeCashSession = await openCashSession({ montoInicial, user: state.userProfile });
+      state.activeCashSession = await openCashSession({ montoInicial, user: state.userProfile }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
       closeModal();
       alert("Caja abierta correctamente.");
       await renderApp();
@@ -233,7 +303,12 @@ function bindVentas() {
       addToCart(product);
       renderApp();
     };
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
   document.querySelectorAll("[data-cart-inc]").forEach(btn => {
     btn.onclick = () => {
@@ -241,7 +316,12 @@ function bindVentas() {
       changeQty(id, 1);
       renderApp();
     };
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
   document.querySelectorAll("[data-cart-dec]").forEach(btn => {
     btn.onclick = () => {
@@ -249,7 +329,12 @@ function bindVentas() {
       changeQty(id, -1);
       renderApp();
     };
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
   document.querySelectorAll("[data-cart-remove]").forEach(btn => {
     btn.onclick = () => {
@@ -257,7 +342,12 @@ function bindVentas() {
       state.cart = state.cart.filter(i => i.id !== id);
       renderApp();
     };
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
   const payInput = document.getElementById("pagadoCon");
   if (payInput) {
@@ -311,7 +401,12 @@ function bindVentas() {
         cantidad,
         precio,
         total: precio * cantidad
-      });
+      }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
       renderApp();
     };
   }
@@ -328,7 +423,12 @@ function bindVentas() {
         const visible = !q || name.includes(q) || code.includes(q) || `${name} ${code}`.includes(q);
         card.classList.toggle("hidden", !visible);
         if (visible && !firstVisible) firstVisible = card;
-      });
+      }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
       return firstVisible;
     };
     search.oninput = applySearch;
@@ -383,7 +483,12 @@ async function showClientModal() {
     const direccion = document.getElementById("nuevoClienteDireccion")?.value.trim() || "";
     if (!nombre) return alert("Ingresa el nombre del cliente.");
     try {
-      const ref = await createClient({ nombre, identificacion, telefono, direccion });
+      const ref = await createClient({ nombre, identificacion, telefono, direccion }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
       state.clients = await listClients().catch(() => state.clients);
       state.selectedClientId = ref.id;
       closeModal();
@@ -410,7 +515,12 @@ function addToCart(product) {
       cantidad: 1,
       precio: Number(product.precio || 0),
       total: Number(product.precio || 0)
-    });
+    }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
   }
 }
 
@@ -527,7 +637,12 @@ function bindProductos() {
       const product = state.products.find(p => p.id === id);
       if (product) showProductModal(product);
     };
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
   document.querySelectorAll("[data-adjust-stock]").forEach(btn => {
     btn.onclick = () => {
@@ -535,7 +650,12 @@ function bindProductos() {
       const product = state.products.find(p => p.id === id);
       if (product) showAdjustStockModal(product);
     };
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
   document.querySelectorAll("[data-delete-product]").forEach(btn => {
     btn.onclick = async () => {
@@ -554,7 +674,12 @@ function bindProductos() {
         alert("No se pudo eliminar el producto.");
       }
     };
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 
   const search = document.getElementById("buscarProductoTabla");
   if (search) {
@@ -562,7 +687,12 @@ function bindProductos() {
       const q = search.value.trim().toLowerCase();
       document.querySelectorAll(".table tbody tr[data-product-row]").forEach(row => {
         row.classList.toggle("hidden", !row.textContent.toLowerCase().includes(q));
-      });
+      }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
     };
   }
 
@@ -635,7 +765,13 @@ function showProductModal(product = null) {
     </div>
   `));
   document.getElementById("cancelModal").onclick = closeModal;
-  document.getElementById("saveProductModal").onclick = async () => {
+  let guardandoProducto=false;
+document.getElementById("saveProductModal").onclick = async () => {
+if(guardandoProducto) return;
+guardandoProducto=true;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=true;
+btn.innerText="Guardando...";
     const payload = {
       codigo: document.getElementById("pCodigo").value.trim(),
       nombre: document.getElementById("pNombre").value.trim(),
@@ -795,7 +931,12 @@ function bindUsuarios() {
       const user = state.cachedUsers?.find(u => u.id === id) || { id };
       showUserModal(user);
     };
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 }
 
 function showUserModal(user = null) {
@@ -839,9 +980,19 @@ function showUserModal(user = null) {
     }
     try {
       if (isEdit) {
-        await saveUser(user.id, { nombre, email, rol, activo });
+        await saveUser(user.id, { nombre, email, rol, activo }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
       } else {
-        await createUserByAdmin({ email, password, nombre, rol, activo });
+        await createUserByAdmin({ email, password, nombre, rol, activo }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
       }
       closeModal();
       await renderApp();
@@ -930,7 +1081,12 @@ function bindConfiguracion() {
         ticketFooter: document.getElementById("cfgTicketFooter").value.trim(),
         logoMode,
         logoValue
-      });
+      }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
       await getConfig();
       alert("Configuración guardada.");
       await renderApp();
@@ -948,5 +1104,10 @@ function fileToDataUrl(file) {
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = reject;
     reader.readAsDataURL(file);
-  });
+  }finally{
+guardandoProducto=false;
+const btn=document.getElementById("saveProductModal");
+btn.disabled=false;
+btn.innerText="Crear producto";
+}});
 }
