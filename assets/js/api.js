@@ -1,6 +1,6 @@
 
 import {
-  db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, orderBy, limit, serverTimestamp, Timestamp
 } from "./firebase.js";
 import { state } from "./state.js";
@@ -71,6 +71,10 @@ export async function updateProduct(id, payload) {
     activo: payload.activo !== false,
     actualizadoEn: serverTimestamp()
   });
+}
+
+export async function deleteProduct(id) {
+  await deleteDoc(doc(db, "productos", id));
 }
 
 export async function adjustStock(product, quantity, type, reference, user) {

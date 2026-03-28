@@ -3,7 +3,7 @@ import {
 } from "./firebase.js";
 import { state } from "./state.js";
 import {
-  getConfig, getUserProfile, listProducts, createProduct, updateProduct, adjustStock, listKardex,
+  getConfig, getUserProfile, listProducts, createProduct, updateProduct, deleteProduct, adjustStock, listKardex,
   listUsers, saveUser, listSales, getNextSaleNumber, createSale, listClients, createClient,
   getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig
 } from "./api.js";
@@ -224,20 +224,14 @@ function showOpenCashModal() {
 }
 
 function bindVentas() {
-  const addProductAndRefresh = (product) => {
-    if (!product) return;
-    if (Number(product.stock || 0) <= 0) return alert("No hay stock disponible.");
-    addToCart(product);
-    state.saleSearchQuery = "";
-    state.salesSearchFocusedIndex = 0;
-    renderApp();
-  };
-
-  document.querySelectorAll("[data-search-product]").forEach(btn => {
+  document.querySelectorAll("[data-add-product]").forEach(btn => {
     btn.onclick = () => {
-      const id = btn.getAttribute("data-search-product");
+      const id = btn.getAttribute("data-add-product");
       const product = state.products.find(p => p.id === id);
-      addProductAndRefresh(product);
+      if (!product) return;
+      if (Number(product.stock || 0) <= 0) return alert("No hay stock disponible.");
+      addToCart(product);
+      renderApp();
     };
   });
 
@@ -295,7 +289,6 @@ function bindVentas() {
     clientSelect.value = state.selectedClientId || "final";
     clientSelect.onchange = () => {
       state.selectedClientId = clientSelect.value || "final";
-      renderApp();
     };
   }
 
@@ -324,127 +317,33 @@ function bindVentas() {
   }
 
   const search = document.getElementById("buscarProducto");
-  const resultsContainer = document.getElementById("listaProductos");
-  const getMatches = (rawQuery) => {
-    const q = String(rawQuery || "").trim().toLowerCase();
-    if (!q) return [];
-    return state.products
-      .filter(p => p.activo !== false)
-      .map(product => {
-        const name = String(product.nombre || "").toLowerCase();
-        const code = String(product.codigo || "").toLowerCase();
-        const score =
-          (code === q ? 100 : 0) +
-          (name.startsWith(q) ? 60 : 0) +
-          (code.startsWith(q) ? 55 : 0) +
-          (name.includes(q) ? 25 : 0) +
-          (code.includes(q) ? 20 : 0);
-        return { product, score };
-      })
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score || String(a.product.nombre || "").localeCompare(String(b.product.nombre || "")))
-      .slice(0, 12);
-  };
-
-  const updateSearchResults = () => {
-    if (!search || !resultsContainer) return [];
-    const matches = getMatches(search.value);
-    state.saleSearchQuery = search.value;
-    state.salesSearchFocusedIndex = 0;
-    if (!search.value.trim()) {
-      resultsContainer.innerHTML = '<div class="search-hint">Escribe el nombre, código o escanea el producto. También puedes presionar <strong>Enter</strong> para agregar el primer resultado.</div>';
-      return [];
-    }
-    if (!matches.length) {
-      resultsContainer.innerHTML = `<div class="search-empty">No se encontraron productos para <strong>${escapeHtml(search.value)}</strong>.</div>`;
-      return [];
-    }
-    resultsContainer.innerHTML = matches.map((item, index) => {
-      const p = item.product;
-      return `
-        <button class="product-search-item ${index === 0 ? 'is-active' : ''}" type="button" data-search-product="${p.id}">
-          <div class="product-search-main">
-            <strong>${escapeHtml(p.nombre || 'Producto')}</strong>
-            <span class="product-search-code">${escapeHtml(p.codigo || 'Sin código')}</span>
-          </div>
-          <div class="product-search-side">
-            <span class="product-search-stock">Stock: ${Number(p.stock || 0)}</span>
-            <span class="product-search-price">${state.config.moneda}${Number(p.precio || 0).toFixed(2)}</span>
-          </div>
-        </button>`;
-    }).join('');
-    document.querySelectorAll("[data-search-product]").forEach(btn => {
-      btn.onclick = () => {
-        const id = btn.getAttribute("data-search-product");
-        const product = state.products.find(p => p.id === id);
-        addProductAndRefresh(product);
-      };
-    });
-    return matches;
-  };
-
   if (search) {
-    search.focus();
-    search.oninput = () => {
-      updateSearchResults();
-      const exactMatch = state.products.find(p => String(p.codigo || '').toLowerCase() === search.value.trim().toLowerCase());
-      if (exactMatch && search.value.trim().length >= 4) {
-        // commonly barcode scanners end with Enter, but for exact code matches we also show single item immediately
-      }
+    const applySearch = () => {
+      const q = search.value.trim().toLowerCase();
+      const cards = [...document.querySelectorAll("[data-add-product]")];
+      let firstVisible = null;
+      cards.forEach(card => {
+        const name = (card.getAttribute("data-product-name") || "").toLowerCase();
+        const code = (card.getAttribute("data-product-code") || "").toLowerCase();
+        const visible = !q || name.includes(q) || code.includes(q) || `${name} ${code}`.includes(q);
+        card.classList.toggle("hidden", !visible);
+        if (visible && !firstVisible) firstVisible = card;
+      });
+      return firstVisible;
     };
+    search.oninput = applySearch;
     search.onkeydown = (e) => {
-      const matches = getMatches(search.value);
       if (e.key === "Enter") {
-        e.preventDefault();
-        const exact = matches.find(item => String(item.product.codigo || '').toLowerCase() === search.value.trim().toLowerCase()
-          || String(item.product.nombre || '').toLowerCase() === search.value.trim().toLowerCase());
-        addProductAndRefresh((exact || matches[0])?.product);
-      }
-      if (e.key === "Escape") {
-        search.value = "";
-        state.saleSearchQuery = "";
-        updateSearchResults();
+        const firstVisible = applySearch();
+        if (firstVisible) {
+          e.preventDefault();
+          firstVisible.click();
+          search.select();
+        }
       }
     };
-    updateSearchResults();
+    applySearch();
   }
-
-  setupVentasCalculator();
-}
-
-function setupVentasCalculator() {
-  const panel = document.getElementById('calcPanel');
-  const openBtn = document.getElementById('btnOpenCalc');
-  const closeBtn = document.getElementById('btnCloseCalc');
-  const display = document.getElementById('calcDisplay');
-  const quickPrice = document.getElementById('ventaRapidaPrecio');
-  if (!panel || !openBtn || !display) return;
-  let expr = '';
-  const refresh = () => { display.value = expr; };
-  openBtn.onclick = () => panel.classList.toggle('hidden');
-  if (closeBtn) closeBtn.onclick = () => panel.classList.add('hidden');
-  document.querySelectorAll('[data-calc]').forEach(btn => {
-    btn.onclick = () => {
-      expr += btn.getAttribute('data-calc') || '';
-      refresh();
-    };
-  });
-  const clearBtn = document.getElementById('btnCalcClear');
-  if (clearBtn) clearBtn.onclick = () => { expr = ''; refresh(); };
-  const eqBtn = document.getElementById('btnCalcEquals');
-  if (eqBtn) eqBtn.onclick = () => {
-    try {
-      expr = String(Function(`"use strict"; return (${expr || '0'})`)());
-      refresh();
-    } catch {
-      alert('Operación inválida.');
-    }
-  };
-  const sendBtn = document.getElementById('btnCalcToQuickSale');
-  if (sendBtn) sendBtn.onclick = () => {
-    if (quickPrice) quickPrice.value = expr || quickPrice.value || '';
-    panel.classList.add('hidden');
-  };
 }
 
 async function showClientModal() {
@@ -638,11 +537,30 @@ function bindProductos() {
     };
   });
 
+  document.querySelectorAll("[data-delete-product]").forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute("data-delete-product");
+      const product = state.products.find(p => p.id === id);
+      if (!product) return;
+      const ok = confirm(`¿Eliminar el producto "${product.nombre}"? Esta acción no se puede deshacer.`);
+      if (!ok) return;
+      try {
+        await deleteProduct(id);
+        state.products = await listProducts();
+        await renderApp();
+        alert("Producto eliminado correctamente.");
+      } catch (error) {
+        console.error(error);
+        alert("No se pudo eliminar el producto.");
+      }
+    };
+  });
+
   const search = document.getElementById("buscarProductoTabla");
   if (search) {
     search.oninput = () => {
       const q = search.value.trim().toLowerCase();
-      document.querySelectorAll(".table tbody tr").forEach(row => {
+      document.querySelectorAll(".table tbody tr[data-product-row]").forEach(row => {
         row.classList.toggle("hidden", !row.textContent.toLowerCase().includes(q));
       });
     };
@@ -650,6 +568,46 @@ function bindProductos() {
 
   const importBtn = document.getElementById("btnImportarProductos");
   if (importBtn) importBtn.onclick = showImportProductsModal;
+
+  const exportBtn = document.getElementById("btnExportarProductos");
+  if (exportBtn) {
+    exportBtn.onclick = () => {
+      const rows = state.products.map(p => ({
+        codigo: p.codigo || "",
+        nombre: p.nombre || "",
+        categoria: p.categoria || "General",
+        precio: Number(p.precio || 0),
+        stock: Number(p.stock || 0),
+        minimo: Number(p.minimo || 0),
+        activo: p.activo !== false ? "true" : "false"
+      }));
+      const csv = csvFromRows(rows, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
+      downloadTextFile(`productos_${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
+      alert("Exportación completada.");
+    };
+  }
+
+  const templateBtn = document.getElementById("btnPlantillaProductos");
+  if (templateBtn) {
+    templateBtn.onclick = () => {
+      const sample = [
+        { codigo: "P001", nombre: "Arroz 5kg", categoria: "Granos", precio: 24.5, stock: 10, minimo: 2, activo: "true" },
+        { codigo: "P002", nombre: "Huevos docena", categoria: "Abarrotes", precio: 3.5, stock: 24, minimo: 6, activo: "true" }
+      ];
+      const csv = csvFromRows(sample, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
+      downloadTextFile("plantilla_productos.csv", csv, "text/csv;charset=utf-8");
+    };
+  }
+}
+
+function normalizeCode(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function findExistingProductByCode(code, ignoreId = null) {
+  const normalized = normalizeCode(code);
+  if (!normalized) return null;
+  return state.products.find(p => normalizeCode(p.codigo) === normalized && p.id !== ignoreId) || null;
 }
 
 function showProductModal(product = null) {
@@ -688,6 +646,10 @@ function showProductModal(product = null) {
       activo: document.getElementById("pActivo").checked
     };
     if (!payload.nombre) return alert("Debes escribir el nombre.");
+
+    const duplicate = findExistingProductByCode(payload.codigo, product?.id || null);
+    if (duplicate) return alert(`Ya existe un producto con el código ${payload.codigo}. Usa otro código o edita el existente.`);
+
     if (isEdit) {
       const previousStock = Number(product.stock || 0);
       await updateProduct(product.id, payload);
@@ -752,42 +714,74 @@ function showAdjustStockModal(product) {
 function showImportProductsModal() {
   document.body.insertAdjacentHTML("beforeend", modalShell(`
     <h3 class="m0">Importar productos desde CSV</h3>
-    <div class="alert alert-info mt16">Encabezados: codigo,nombre,categoria,precio,stock,minimo,activo</div>
+    <div class="alert alert-info mt16">Formato requerido: <span class="kbd">codigo,nombre,categoria,precio,stock,minimo,activo</span>. Si el código ya existe, el producto se actualiza.</div>
     <div class="form-group mt16">
       <label>Archivo CSV</label>
       <input class="input" id="csvFileProducts" type="file" accept=".csv,text/csv" />
     </div>
     <div class="toolbar mt16">
+      <button class="btn btn-secondary" id="downloadImportTemplate">Descargar plantilla</button>
       <button class="btn btn-primary" id="confirmImportProducts">Importar</button>
       <button class="btn btn-secondary" id="cancelModal">Cancelar</button>
     </div>
   `));
   document.getElementById("cancelModal").onclick = closeModal;
+  document.getElementById("downloadImportTemplate").onclick = () => {
+    const sample = [
+      { codigo: "P001", nombre: "Arroz 5kg", categoria: "Granos", precio: 24.5, stock: 10, minimo: 2, activo: "true" },
+      { codigo: "P002", nombre: "Huevos docena", categoria: "Abarrotes", precio: 3.5, stock: 24, minimo: 6, activo: "true" }
+    ];
+    const csv = csvFromRows(sample, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
+    downloadTextFile("plantilla_productos.csv", csv, "text/csv;charset=utf-8");
+  };
   document.getElementById("confirmImportProducts").onclick = async () => {
     const file = document.getElementById("csvFileProducts").files[0];
     if (!file) return alert("Selecciona un CSV.");
     const text = await readFileAsText(file);
     const rows = parseCsv(text);
+    if (!rows.length) return alert("El archivo está vacío o no tiene filas válidas.");
+
+    let creados = 0;
+    let actualizados = 0;
+    let omitidos = 0;
+
     for (const row of rows) {
       const payload = {
-        codigo: row.codigo || "",
-        nombre: row.nombre || "",
-        categoria: row.categoria || "General",
+        codigo: String(row.codigo || "").trim(),
+        nombre: String(row.nombre || "").trim(),
+        categoria: String(row.categoria || "").trim() || "General",
         precio: toNumber(row.precio),
         stock: toNumber(row.stock),
         minimo: toNumber(row.minimo),
         activo: String(row.activo || "true").toLowerCase() !== "false"
       };
-      if (!payload.nombre) continue;
-      const ref = await createProduct({ ...payload, stock: 0 });
-      if (payload.stock !== 0) {
-        await adjustStock({ ...payload, id: ref.id, stock: 0 }, payload.stock, "creacion", "importacion_csv", state.userProfile);
+      if (!payload.nombre) {
+        omitidos++;
+        continue;
       }
+
+      const existing = findExistingProductByCode(payload.codigo);
+      if (existing) {
+        const previousStock = Number(existing.stock || 0);
+        await updateProduct(existing.id, payload);
+        const diff = Number(payload.stock || 0) - previousStock;
+        if (diff !== 0) {
+          await adjustStock({ ...existing, stock: previousStock }, diff, "ajuste", "importacion_csv", state.userProfile);
+        }
+        actualizados++;
+      } else {
+        const ref = await createProduct(payload);
+        if (payload.stock !== 0) {
+          await adjustStock({ ...payload, id: ref.id, stock: 0 }, payload.stock, "creacion", "importacion_csv", state.userProfile);
+        }
+        creados++;
+      }
+      state.products = await listProducts();
     }
     state.products = await listProducts();
     closeModal();
     await renderApp();
-    alert("Importación completada.");
+    alert(`Importación completada. Creados: ${creados}. Actualizados: ${actualizados}. Omitidos: ${omitidos}.`);
   };
 }
 
