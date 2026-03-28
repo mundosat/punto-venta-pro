@@ -39,12 +39,7 @@ onAuthStateChanged(auth, async (user) => {
     app.innerHTML = renderLogin();
     bindLogin("No se pudo cargar el sistema. Revisa tu configuración de Firebase.");
   }
-}finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+});
 
 async function refreshBootstrap() {
   state.userProfile = await getUserProfile(state.currentUser.uid);
@@ -70,7 +65,12 @@ function bindLogin(message = "") {
     } catch (err) {
       alert("No se pudo iniciar sesión: " + (err?.message || err));
     }
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 }
 
 window.addEventListener("hashchange", () => renderApp());
@@ -84,12 +84,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     } catch {}
   }
-}finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+});
 
 async function renderApp() {
   state.currentView = (window.location.hash.replace("#", "") || "inicio");
@@ -103,69 +98,29 @@ async function renderApp() {
 
   if (view === "inicio") {
     const sales = await listSales().catch(() => []);
-    content = renderInicio({ sales, products: state.products, cashSession: state.activeCashSession }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    content = renderInicio({ sales, products: state.products, cashSession: state.activeCashSession });
   } else if (view === "caja") {
     const movements = state.activeCashSession ? await listCashMovements(state.activeCashSession.id).catch(() => []) : [];
     const sales = await getSessionSales();
-    content = renderCaja({ session: state.activeCashSession, movements, sales }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    content = renderCaja({ session: state.activeCashSession, movements, sales });
   } else if (view === "ventas") {
-    content = renderVentas({ products: state.products, cart: state.cart, clients: state.clients, selectedClientId: state.selectedClientId }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    content = renderVentas({ products: state.products, cart: state.cart, clients: state.clients, selectedClientId: state.selectedClientId });
   } else if (view === "productos") {
-    content = renderProductos({ products: state.products }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    content = renderProductos({ products: state.products });
   } else if (view === "kardex") {
     const items = await listKardex().catch(() => []);
-    content = renderKardex({ items }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    content = renderKardex({ items });
   } else if (view === "usuarios") {
     const users = await listUsers().catch(() => []);
     state.cachedUsers = users;
-    content = renderUsuarios({ users }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    content = renderUsuarios({ users });
   } else if (view === "reportes") {
     const sales = await listSales().catch(() => []);
-    content = renderReportes({ sales, products: state.products }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    content = renderReportes({ sales, products: state.products });
   } else if (view === "configuracion") {
     content = renderConfiguracion();
   } else {
-    content = renderInicio({ sales: [], products: state.products, cashSession: state.activeCashSession }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    content = renderInicio({ sales: [], products: state.products, cashSession: state.activeCashSession });
   }
 
   app.innerHTML = renderLayout(content);
@@ -194,12 +149,7 @@ async function getSessionSales() {
   return all.filter(s => {
     const t = s.fecha?.toDate ? s.fecha.toDate().getTime() : new Date(s.fecha).getTime();
     return t >= openAt;
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+  });
 }
 
 function bindCaja() {
@@ -223,18 +173,18 @@ function bindCaja() {
           concepto,
           usuarioId: state.userProfile.id,
           usuarioNombre: state.userProfile.nombre
-        }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+        });
         await renderApp();
       } catch (err) {
         console.error(err);
         alert("No se pudo guardar el movimiento.");
       }
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 
   const closeBtn = document.getElementById("btnCerrarCaja");
@@ -248,15 +198,15 @@ btn.innerText="Crear producto";
       const totalVentas = sales.reduce((a, s) => a + Number(s.total || 0), 0);
       const montoFinal = Number(state.activeCashSession.montoInicial || 0) + ingresos + totalVentas - egresos;
       if (!confirm(`¿Cerrar caja con total estimado ${state.config.moneda}${montoFinal.toFixed(2)}?`)) return;
-      await closeCashSession(state.activeCashSession, { ingresos, egresos, totalVentas, montoFinal }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+      await closeCashSession(state.activeCashSession, { ingresos, egresos, totalVentas, montoFinal });
       state.activeCashSession = null;
       await renderApp();
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 }
 
@@ -276,12 +226,7 @@ function showOpenCashModal() {
   document.getElementById("confirmOpenCash").onclick = async () => {
     try {
       const montoInicial = toNumber(document.getElementById("cashOpenAmount").value);
-      state.activeCashSession = await openCashSession({ montoInicial, user: state.userProfile }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+      state.activeCashSession = await openCashSession({ montoInicial, user: state.userProfile });
       closeModal();
       alert("Caja abierta correctamente.");
       await renderApp();
@@ -290,7 +235,12 @@ btn.innerText="Crear producto";
       const message = error?.message || String(error);
       alert("No se pudo abrir la caja. Detalle: " + message);
     }
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 }
 
 function bindVentas() {
@@ -302,52 +252,52 @@ function bindVentas() {
       if (Number(product.stock || 0) <= 0) return alert("No hay stock disponible.");
       addToCart(product);
       renderApp();
-    };
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
+  });
 
   document.querySelectorAll("[data-cart-inc]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-cart-inc");
       changeQty(id, 1);
       renderApp();
-    };
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
+  });
 
   document.querySelectorAll("[data-cart-dec]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-cart-dec");
       changeQty(id, -1);
       renderApp();
-    };
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
+  });
 
   document.querySelectorAll("[data-cart-remove]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-cart-remove");
       state.cart = state.cart.filter(i => i.id !== id);
       renderApp();
-    };
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
+  });
 
   const payInput = document.getElementById("pagadoCon");
   if (payInput) {
@@ -357,7 +307,12 @@ btn.innerText="Crear producto";
       const change = Math.max(0, paid - total);
       const changeInput = document.getElementById("cambioVenta");
       if (changeInput) changeInput.value = change.toFixed(2);
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
     payInput.oninput = syncChange;
     syncChange();
   }
@@ -366,7 +321,12 @@ btn.innerText="Crear producto";
   if (clearBtn) clearBtn.onclick = async () => {
     state.cart = [];
     await renderApp();
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 
   const btnPrint = document.getElementById("btnCobrarImprimir");
   if (btnPrint) btnPrint.onclick = () => chargeSale(true);
@@ -379,7 +339,12 @@ btn.innerText="Crear producto";
     clientSelect.value = state.selectedClientId || "final";
     clientSelect.onchange = () => {
       state.selectedClientId = clientSelect.value || "final";
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 
   const registerClientBtn = document.getElementById("btnRegistrarCliente");
@@ -401,14 +366,14 @@ btn.innerText="Crear producto";
         cantidad,
         precio,
         total: precio * cantidad
-      }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+      });
       renderApp();
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 
   const search = document.getElementById("buscarProducto");
@@ -423,14 +388,14 @@ btn.innerText="Crear producto";
         const visible = !q || name.includes(q) || code.includes(q) || `${name} ${code}`.includes(q);
         card.classList.toggle("hidden", !visible);
         if (visible && !firstVisible) firstVisible = card;
-      }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+      });
       return firstVisible;
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
     search.oninput = applySearch;
     search.onkeydown = (e) => {
       if (e.key === "Enter") {
@@ -441,7 +406,12 @@ btn.innerText="Crear producto";
           search.select();
         }
       }
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
     applySearch();
   }
 }
@@ -483,12 +453,7 @@ async function showClientModal() {
     const direccion = document.getElementById("nuevoClienteDireccion")?.value.trim() || "";
     if (!nombre) return alert("Ingresa el nombre del cliente.");
     try {
-      const ref = await createClient({ nombre, identificacion, telefono, direccion }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+      const ref = await createClient({ nombre, identificacion, telefono, direccion });
       state.clients = await listClients().catch(() => state.clients);
       state.selectedClientId = ref.id;
       closeModal();
@@ -497,7 +462,12 @@ btn.innerText="Crear producto";
       console.error(err);
       alert("No se pudo guardar el cliente.");
     }
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 }
 
 function addToCart(product) {
@@ -515,12 +485,7 @@ function addToCart(product) {
       cantidad: 1,
       precio: Number(product.precio || 0),
       total: Number(product.precio || 0)
-    }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    });
   }
 }
 
@@ -598,7 +563,12 @@ async function chargeSale(imprimir) {
         precio: i.precio,
         total: i.total
       }))
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 
     const ref = await createSale(salePayload);
 
@@ -613,7 +583,12 @@ async function chargeSale(imprimir) {
       id: ref.id,
       ...salePayload,
       fecha: new Date()
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 
     state.cart = [];
     if (imprimir || state.config.imprimirAutomatico) {
@@ -636,26 +611,26 @@ function bindProductos() {
       const id = btn.getAttribute("data-edit-product");
       const product = state.products.find(p => p.id === id);
       if (product) showProductModal(product);
-    };
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
+  });
 
   document.querySelectorAll("[data-adjust-stock]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-adjust-stock");
       const product = state.products.find(p => p.id === id);
       if (product) showAdjustStockModal(product);
-    };
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
+  });
 
   document.querySelectorAll("[data-delete-product]").forEach(btn => {
     btn.onclick = async () => {
@@ -673,13 +648,13 @@ btn.innerText="Crear producto";
         console.error(error);
         alert("No se pudo eliminar el producto.");
       }
-    };
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
+  });
 
   const search = document.getElementById("buscarProductoTabla");
   if (search) {
@@ -687,13 +662,13 @@ btn.innerText="Crear producto";
       const q = search.value.trim().toLowerCase();
       document.querySelectorAll(".table tbody tr[data-product-row]").forEach(row => {
         row.classList.toggle("hidden", !row.textContent.toLowerCase().includes(q));
-      }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
-    };
+      });
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 
   const importBtn = document.getElementById("btnImportarProductos");
@@ -714,7 +689,12 @@ btn.innerText="Crear producto";
       const csv = csvFromRows(rows, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
       downloadTextFile(`productos_${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
       alert("Exportación completada.");
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 
   const templateBtn = document.getElementById("btnPlantillaProductos");
@@ -726,7 +706,12 @@ btn.innerText="Crear producto";
       ];
       const csv = csvFromRows(sample, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
       downloadTextFile("plantilla_productos.csv", csv, "text/csv;charset=utf-8");
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 }
 
@@ -765,13 +750,18 @@ function showProductModal(product = null) {
     </div>
   `));
   document.getElementById("cancelModal").onclick = closeModal;
-  let guardandoProducto=false;
+  let guardandoProducto = false;
+
 document.getElementById("saveProductModal").onclick = async () => {
-if(guardandoProducto) return;
-guardandoProducto=true;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=true;
-btn.innerText="Guardando...";
+
+  if (guardandoProducto) return;
+  guardandoProducto = true;
+
+  const btn = document.getElementById("saveProductModal");
+  btn.disabled = true;
+  btn.innerText = "Guardando...";
+
+  try {
     const payload = {
       codigo: document.getElementById("pCodigo").value.trim(),
       nombre: document.getElementById("pNombre").value.trim(),
@@ -780,7 +770,12 @@ btn.innerText="Guardando...";
       stock: toNumber(document.getElementById("pStock").value),
       minimo: toNumber(document.getElementById("pMinimo").value),
       activo: document.getElementById("pActivo").checked
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
     if (!payload.nombre) return alert("Debes escribir el nombre.");
 
     const duplicate = findExistingProductByCode(payload.codigo, product?.id || null);
@@ -802,7 +797,12 @@ btn.innerText="Guardando...";
     state.products = await listProducts();
     closeModal();
     await renderApp();
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 }
 
 function showAdjustStockModal(product) {
@@ -844,7 +844,12 @@ function showAdjustStockModal(product) {
     state.products = await listProducts();
     closeModal();
     await renderApp();
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 }
 
 function showImportProductsModal() {
@@ -869,7 +874,12 @@ function showImportProductsModal() {
     ];
     const csv = csvFromRows(sample, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
     downloadTextFile("plantilla_productos.csv", csv, "text/csv;charset=utf-8");
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   document.getElementById("confirmImportProducts").onclick = async () => {
     const file = document.getElementById("csvFileProducts").files[0];
     if (!file) return alert("Selecciona un CSV.");
@@ -890,7 +900,12 @@ function showImportProductsModal() {
         stock: toNumber(row.stock),
         minimo: toNumber(row.minimo),
         activo: String(row.activo || "true").toLowerCase() !== "false"
-      };
+      } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
       if (!payload.nombre) {
         omitidos++;
         continue;
@@ -918,7 +933,12 @@ function showImportProductsModal() {
     closeModal();
     await renderApp();
     alert(`Importación completada. Creados: ${creados}. Actualizados: ${actualizados}. Omitidos: ${omitidos}.`);
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 }
 
 function bindUsuarios() {
@@ -928,15 +948,20 @@ function bindUsuarios() {
   document.querySelectorAll("[data-edit-user]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-edit-user");
-      const user = state.cachedUsers?.find(u => u.id === id) || { id };
+      const user = state.cachedUsers?.find(u => u.id === id) || { id } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
       showUserModal(user);
-    };
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
+  });
 }
 
 function showUserModal(user = null) {
@@ -980,19 +1005,9 @@ function showUserModal(user = null) {
     }
     try {
       if (isEdit) {
-        await saveUser(user.id, { nombre, email, rol, activo }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+        await saveUser(user.id, { nombre, email, rol, activo });
       } else {
-        await createUserByAdmin({ email, password, nombre, rol, activo }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+        await createUserByAdmin({ email, password, nombre, rol, activo });
       }
       closeModal();
       await renderApp();
@@ -1001,7 +1016,12 @@ btn.innerText="Crear producto";
       console.error(error);
       alert("No se pudo guardar el usuario: " + (error?.message || error));
     }
-  };
+  } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
 }
 
 function bindReportes() {
@@ -1022,7 +1042,12 @@ function bindReportes() {
         Number(s.cambio || 0).toFixed(2)
       ]));
       downloadTextFile("reporte_ventas.csv", csvFromRows(rows), "text/csv;charset=utf-8");
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
   const btnProducts = document.getElementById("btnExportProductosCSV");
   if (btnProducts) {
@@ -1038,7 +1063,12 @@ function bindReportes() {
         p.activo !== false ? "true" : "false"
       ]));
       downloadTextFile("reporte_productos.csv", csvFromRows(rows), "text/csv;charset=utf-8");
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 }
 
@@ -1051,7 +1081,12 @@ function bindConfiguracion() {
       const base64 = await fileToDataUrl(file);
       const preview = document.querySelector(".logo-preview");
       if (preview) preview.innerHTML = `<img src="${base64}" alt="Logo">`;
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 
   const btn = document.getElementById("btnGuardarConfiguracion");
@@ -1081,16 +1116,16 @@ function bindConfiguracion() {
         ticketFooter: document.getElementById("cfgTicketFooter").value.trim(),
         logoMode,
         logoValue
-      }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+      });
       await getConfig();
       alert("Configuración guardada.");
       await renderApp();
-    };
+    } finally {
+    guardandoProducto = false;
+    btn.disabled = false;
+    btn.innerText = "Crear producto";
+  }
+};
   }
 }
 
@@ -1104,10 +1139,5 @@ function fileToDataUrl(file) {
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = reject;
     reader.readAsDataURL(file);
-  }finally{
-guardandoProducto=false;
-const btn=document.getElementById("saveProductModal");
-btn.disabled=false;
-btn.innerText="Crear producto";
-}});
+  });
 }
