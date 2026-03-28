@@ -1,6 +1,6 @@
 
 import {
-  db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, orderBy, limit, serverTimestamp, Timestamp
 } from "./firebase.js";
 import { state } from "./state.js";
@@ -73,6 +73,10 @@ export async function updateProduct(id, payload) {
   });
 }
 
+export async function deleteProduct(id) {
+  await deleteDoc(doc(db, "productos", id));
+}
+
 export async function adjustStock(product, quantity, type, reference, user) {
   const previous = toNumber(product.stock);
   const next = previous + toNumber(quantity);
@@ -116,6 +120,21 @@ export async function createSale(payload) {
     ...payload,
     fecha: serverTimestamp()
   });
+}
+
+export async function deleteOldSales(days = 30) {
+  const snap = await getDocs(query(collection(db, "ventas"), orderBy("fecha", "desc"), limit(300)));
+  const cutoffMs = Date.now() - (Number(days || 30) * 24 * 60 * 60 * 1000);
+  let deleted = 0;
+  for (const item of snap.docs) {
+    const data = item.data() || {};
+    const fecha = data.fecha?.toDate ? data.fecha.toDate() : (data.fecha ? new Date(data.fecha) : null);
+    if (fecha && fecha.getTime() < cutoffMs) {
+      await deleteDoc(doc(db, "ventas", item.id));
+      deleted += 1;
+    }
+  }
+  return deleted;
 }
 
 async function ensureCajaDoc() {

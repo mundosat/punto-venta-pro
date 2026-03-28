@@ -257,6 +257,7 @@ export function renderProductos({ products = [] }) {
       <td class="right">
         <button class="btn btn-secondary btn-sm" data-edit-product="${p.id}">Editar</button>
         <button class="btn btn-warning btn-sm" data-adjust-stock="${p.id}">Ajustar stock</button>
+        <button class="btn btn-danger btn-sm" data-delete-product="${p.id}">Eliminar</button>
       </td>
     </tr>
   `).join("");
@@ -264,6 +265,7 @@ export function renderProductos({ products = [] }) {
   return `
     ${topbar("Productos", `
       <button class="btn btn-secondary" id="btnImportarProductos">Importar CSV</button>
+      <button class="btn btn-secondary" id="btnExportProductosExcel">Exportar Excel</button>
       <button class="btn btn-primary" id="btnNuevoProducto">Nuevo producto</button>
     `)}
     <section class="card">
@@ -411,6 +413,7 @@ export function renderReportes({ sales = [], products = [] }) {
     ${topbar("Reportes", `
       <button class="btn btn-secondary" id="btnExportVentasCSV">Exportar ventas CSV</button>
       <button class="btn btn-secondary" id="btnExportProductosCSV">Exportar productos CSV</button>
+      <button class="btn btn-danger" id="btnLimpiarVentasAntiguas">Limpiar ventas > 30 días</button>
     `)}
 
     <div class="grid grid-4">
