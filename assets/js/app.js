@@ -3,7 +3,7 @@ import {
 } from "./firebase.js";
 import { state } from "./state.js";
 import {
-  getConfig, getUserProfile, listProducts, createProduct, updateProduct, deleteProduct, adjustStock, listKardex,
+  getConfig, getUserProfile, listProducts, createProduct, updateProduct, adjustStock, listKardex,
   listUsers, saveUser, listSales, getNextSaleNumber, createSale, listClients, createClient,
   getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig
 } from "./api.js";
@@ -537,30 +537,11 @@ function bindProductos() {
     };
   });
 
-  document.querySelectorAll("[data-delete-product]").forEach(btn => {
-    btn.onclick = async () => {
-      const id = btn.getAttribute("data-delete-product");
-      const product = state.products.find(p => p.id === id);
-      if (!product) return;
-      const ok = confirm(`¿Eliminar el producto "${product.nombre}"? Esta acción no se puede deshacer.`);
-      if (!ok) return;
-      try {
-        await deleteProduct(id);
-        state.products = await listProducts();
-        await renderApp();
-        alert("Producto eliminado correctamente.");
-      } catch (error) {
-        console.error(error);
-        alert("No se pudo eliminar el producto.");
-      }
-    };
-  });
-
   const search = document.getElementById("buscarProductoTabla");
   if (search) {
     search.oninput = () => {
       const q = search.value.trim().toLowerCase();
-      document.querySelectorAll(".table tbody tr[data-product-row]").forEach(row => {
+      document.querySelectorAll(".table tbody tr").forEach(row => {
         row.classList.toggle("hidden", !row.textContent.toLowerCase().includes(q));
       });
     };
@@ -568,46 +549,6 @@ function bindProductos() {
 
   const importBtn = document.getElementById("btnImportarProductos");
   if (importBtn) importBtn.onclick = showImportProductsModal;
-
-  const exportBtn = document.getElementById("btnExportarProductos");
-  if (exportBtn) {
-    exportBtn.onclick = () => {
-      const rows = state.products.map(p => ({
-        codigo: p.codigo || "",
-        nombre: p.nombre || "",
-        categoria: p.categoria || "General",
-        precio: Number(p.precio || 0),
-        stock: Number(p.stock || 0),
-        minimo: Number(p.minimo || 0),
-        activo: p.activo !== false ? "true" : "false"
-      }));
-      const csv = csvFromRows(rows, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
-      downloadTextFile(`productos_${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
-      alert("Exportación completada.");
-    };
-  }
-
-  const templateBtn = document.getElementById("btnPlantillaProductos");
-  if (templateBtn) {
-    templateBtn.onclick = () => {
-      const sample = [
-        { codigo: "P001", nombre: "Arroz 5kg", categoria: "Granos", precio: 24.5, stock: 10, minimo: 2, activo: "true" },
-        { codigo: "P002", nombre: "Huevos docena", categoria: "Abarrotes", precio: 3.5, stock: 24, minimo: 6, activo: "true" }
-      ];
-      const csv = csvFromRows(sample, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
-      downloadTextFile("plantilla_productos.csv", csv, "text/csv;charset=utf-8");
-    };
-  }
-}
-
-function normalizeCode(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function findExistingProductByCode(code, ignoreId = null) {
-  const normalized = normalizeCode(code);
-  if (!normalized) return null;
-  return state.products.find(p => normalizeCode(p.codigo) === normalized && p.id !== ignoreId) || null;
 }
 
 function showProductModal(product = null) {
@@ -646,10 +587,6 @@ function showProductModal(product = null) {
       activo: document.getElementById("pActivo").checked
     };
     if (!payload.nombre) return alert("Debes escribir el nombre.");
-
-    const duplicate = findExistingProductByCode(payload.codigo, product?.id || null);
-    if (duplicate) return alert(`Ya existe un producto con el código ${payload.codigo}. Usa otro código o edita el existente.`);
-
     if (isEdit) {
       const previousStock = Number(product.stock || 0);
       await updateProduct(product.id, payload);
@@ -714,74 +651,42 @@ function showAdjustStockModal(product) {
 function showImportProductsModal() {
   document.body.insertAdjacentHTML("beforeend", modalShell(`
     <h3 class="m0">Importar productos desde CSV</h3>
-    <div class="alert alert-info mt16">Formato requerido: <span class="kbd">codigo,nombre,categoria,precio,stock,minimo,activo</span>. Si el código ya existe, el producto se actualiza.</div>
+    <div class="alert alert-info mt16">Encabezados: codigo,nombre,categoria,precio,stock,minimo,activo</div>
     <div class="form-group mt16">
       <label>Archivo CSV</label>
       <input class="input" id="csvFileProducts" type="file" accept=".csv,text/csv" />
     </div>
     <div class="toolbar mt16">
-      <button class="btn btn-secondary" id="downloadImportTemplate">Descargar plantilla</button>
       <button class="btn btn-primary" id="confirmImportProducts">Importar</button>
       <button class="btn btn-secondary" id="cancelModal">Cancelar</button>
     </div>
   `));
   document.getElementById("cancelModal").onclick = closeModal;
-  document.getElementById("downloadImportTemplate").onclick = () => {
-    const sample = [
-      { codigo: "P001", nombre: "Arroz 5kg", categoria: "Granos", precio: 24.5, stock: 10, minimo: 2, activo: "true" },
-      { codigo: "P002", nombre: "Huevos docena", categoria: "Abarrotes", precio: 3.5, stock: 24, minimo: 6, activo: "true" }
-    ];
-    const csv = csvFromRows(sample, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
-    downloadTextFile("plantilla_productos.csv", csv, "text/csv;charset=utf-8");
-  };
   document.getElementById("confirmImportProducts").onclick = async () => {
     const file = document.getElementById("csvFileProducts").files[0];
     if (!file) return alert("Selecciona un CSV.");
     const text = await readFileAsText(file);
     const rows = parseCsv(text);
-    if (!rows.length) return alert("El archivo está vacío o no tiene filas válidas.");
-
-    let creados = 0;
-    let actualizados = 0;
-    let omitidos = 0;
-
     for (const row of rows) {
       const payload = {
-        codigo: String(row.codigo || "").trim(),
-        nombre: String(row.nombre || "").trim(),
-        categoria: String(row.categoria || "").trim() || "General",
+        codigo: row.codigo || "",
+        nombre: row.nombre || "",
+        categoria: row.categoria || "General",
         precio: toNumber(row.precio),
         stock: toNumber(row.stock),
         minimo: toNumber(row.minimo),
         activo: String(row.activo || "true").toLowerCase() !== "false"
       };
-      if (!payload.nombre) {
-        omitidos++;
-        continue;
+      if (!payload.nombre) continue;
+      const ref = await createProduct({ ...payload, stock: 0 });
+      if (payload.stock !== 0) {
+        await adjustStock({ ...payload, id: ref.id, stock: 0 }, payload.stock, "creacion", "importacion_csv", state.userProfile);
       }
-
-      const existing = findExistingProductByCode(payload.codigo);
-      if (existing) {
-        const previousStock = Number(existing.stock || 0);
-        await updateProduct(existing.id, payload);
-        const diff = Number(payload.stock || 0) - previousStock;
-        if (diff !== 0) {
-          await adjustStock({ ...existing, stock: previousStock }, diff, "ajuste", "importacion_csv", state.userProfile);
-        }
-        actualizados++;
-      } else {
-        const ref = await createProduct(payload);
-        if (payload.stock !== 0) {
-          await adjustStock({ ...payload, id: ref.id, stock: 0 }, payload.stock, "creacion", "importacion_csv", state.userProfile);
-        }
-        creados++;
-      }
-      state.products = await listProducts();
     }
     state.products = await listProducts();
     closeModal();
     await renderApp();
-    alert(`Importación completada. Creados: ${creados}. Actualizados: ${actualizados}. Omitidos: ${omitidos}.`);
+    alert("Importación completada.");
   };
 }
 

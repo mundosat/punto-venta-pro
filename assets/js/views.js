@@ -261,7 +261,7 @@ export function renderVentas({ products = [], cart = [], clients = [], selectedC
 
 export function renderProductos({ products = [] }) {
   const rows = products.map(p => `
-    <tr data-product-row>
+    <tr>
       <td>${escapeHtml(p.codigo || "")}</td>
       <td>${escapeHtml(p.nombre)}</td>
       <td>${escapeHtml(p.categoria || "")}</td>
@@ -270,29 +270,24 @@ export function renderProductos({ products = [] }) {
       <td class="right">${Number(p.minimo || 0)}</td>
       <td>${p.activo !== false ? '<span class="badge badge-ok">Activo</span>' : '<span class="badge badge-danger">Inactivo</span>'}</td>
       <td class="right">
-        <div class="action-stack">
-          <button class="btn btn-secondary btn-sm" data-edit-product="${p.id}">Editar</button>
-          <button class="btn btn-warning btn-sm" data-adjust-stock="${p.id}">Stock</button>
-          <button class="btn btn-danger btn-sm" data-delete-product="${p.id}">Eliminar</button>
-        </div>
+        <button class="btn btn-secondary btn-sm" data-edit-product="${p.id}">Editar</button>
+        <button class="btn btn-warning btn-sm" data-adjust-stock="${p.id}">Ajustar stock</button>
       </td>
     </tr>
   `).join("");
 
   return `
     ${topbar("Productos", `
-      <button class="btn btn-secondary" id="btnPlantillaProductos">Plantilla CSV</button>
-      <button class="btn btn-secondary" id="btnExportarProductos">Exportar CSV</button>
       <button class="btn btn-secondary" id="btnImportarProductos">Importar CSV</button>
       <button class="btn btn-primary" id="btnNuevoProducto">Nuevo producto</button>
     `)}
     <section class="card">
-      <div class="grid grid-2 products-header-grid">
+      <div class="grid grid-2">
         <div class="form-group">
           <label>Buscar</label>
           <input class="input" id="buscarProductoTabla" placeholder="Código o nombre" />
         </div>
-        <div class="alert alert-info">Importa todos tus productos de una sola vez con un archivo CSV. Si el código ya existe, el sistema actualiza el producto en vez de duplicarlo.</div>
+        <div class="alert alert-info">Puedes importar productos desde un archivo CSV simple.</div>
       </div>
       <div class="table-wrap mt16">
         <table class="table">

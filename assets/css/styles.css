@@ -144,8 +144,3 @@ img{max-width:100%}
 .product-chip-name{font-weight:700;font-size:1rem;line-height:1.2}
 .product-chip-meta{color:var(--muted);font-size:.88rem;margin-top:8px;word-break:break-word}
 .product-chip-price{margin-top:12px;font-size:1.05rem;font-weight:800;color:#86efac}
-
-
-.action-stack{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.products-header-grid{align-items:end}
-.table td .btn{white-space:nowrap}
