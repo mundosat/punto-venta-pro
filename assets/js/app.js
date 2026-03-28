@@ -746,3 +746,43 @@ function fileToDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
+
+
+// NUEVAS FUNCIONES AGREGADAS
+
+let guardando = false;
+
+async function limpiarVentasAntiguas() {
+    if (!confirm("¿Eliminar ventas de más de 30 días?")) return;
+
+    const snapshot = await getDocs(collection(db, "ventas"));
+    const hoy = new Date();
+
+    snapshot.forEach(async (docu) => {
+        const v = docu.data();
+        const fecha = new Date(v.fecha);
+        const dias = (hoy - fecha) / (1000*60*60*24);
+
+        if (dias > 30) {
+            await deleteDoc(doc(db, "ventas", docu.id));
+        }
+    });
+
+    alert("Ventas limpiadas");
+}
+
+async function exportarProductosExcel() {
+    const snapshot = await getDocs(collection(db, "productos"));
+    let contenido = "Codigo\tNombre\tPrecio\tStock\n";
+
+    snapshot.forEach(d => {
+        const p = d.data();
+        contenido += `${p.codigo}\t${p.nombre}\t${p.precio}\t${p.stock}\n`;
+    });
+
+    const blob = new Blob([contenido], {type:"application/vnd.ms-excel"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "productos.xls";
+    link.click();
+}

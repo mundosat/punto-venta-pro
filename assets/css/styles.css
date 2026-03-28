@@ -133,3 +133,21 @@ img{max-width:100%}
   .sidebar{position:relative;height:auto}
   .grid-4,.grid-3,.grid-2,.pos-layout{grid-template-columns:1fr}
 }
+
+/* MEJORAS PRO */
+button {
+    padding:10px 14px;
+    border-radius:8px;
+    background:#2563eb;
+    color:#fff;
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+}
+button:hover {
+    background:#1e40af;
+}
+.card {
+    box-shadow:0 4px 20px rgba(0,0,0,0.08);
+    border-radius:12px;
+}
