@@ -1,0 +1,16 @@
+{
+  "name": "Punto de Venta PRO Total",
+  "short_name": "PV PRO",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "assets/img/logo-placeholder.svg",
+      "sizes": "256x256",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

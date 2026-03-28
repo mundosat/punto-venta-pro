@@ -1,6 +1,6 @@
 import {
-  db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp
+  db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  query, orderBy, limit, serverTimestamp
 } from "./firebase.js";
 import { state } from "./state.js";
 import { toNumber } from "./utils.js";
@@ -27,8 +27,10 @@ export async function getUserProfile(uid) {
 }
 
 export async function listUsers() {
-  const snap = await getDocs(query(collection(db, "usuarios")));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const snap = await getDocs(collection(db, "usuarios"));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || ""), 'es'));
 }
 
 export async function saveUser(userId, payload) {
@@ -105,30 +107,32 @@ export async function listSales() {
 export async function getNextSaleNumber() {
   const snap = await getDocs(query(collection(db, "ventas"), orderBy("numero", "desc"), limit(1)));
   if (snap.empty) return 1;
-  return (Number(snap.docs[0].data().numero || 0) + 1);
+  return Number(snap.docs[0].data().numero || 0) + 1;
 }
 
 export async function createSale(payload) {
-  const ref = await addDoc(collection(db, "ventas"), {
+  return addDoc(collection(db, "ventas"), {
     ...payload,
     fecha: serverTimestamp()
   });
-  return ref;
 }
 
 export async function getOpenCashSession() {
-  const snap = await getDocs(query(
-    collection(db, "cajas_sesiones"),
-    where("estado", "==", "abierta"),
-    orderBy("fechaApertura", "desc"),
-    limit(1)
-  ));
-  if (snap.empty) return null;
-  const doc0 = snap.docs[0];
-  return { id: doc0.id, ...doc0.data() };
+  const snap = await getDocs(collection(db, "cajas_sesiones"));
+  const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const open = sessions
+    .filter(s => s.estado === 'abierta')
+    .sort((a, b) => {
+      const at = a.fechaApertura?.toDate ? a.fechaApertura.toDate().getTime() : 0;
+      const bt = b.fechaApertura?.toDate ? b.fechaApertura.toDate().getTime() : 0;
+      return bt - at;
+    });
+  return open[0] || null;
 }
 
 export async function openCashSession({ montoInicial, user }) {
+  const alreadyOpen = await getOpenCashSession();
+  if (alreadyOpen) return alreadyOpen;
   const ref = await addDoc(collection(db, "cajas_sesiones"), {
     estado: "abierta",
     fechaApertura: serverTimestamp(),
@@ -141,7 +145,8 @@ export async function openCashSession({ montoInicial, user }) {
     usuarioId: user?.id || "",
     usuarioNombre: user?.nombre || ""
   });
-  return ref;
+  const snap = await getDoc(ref);
+  return { id: ref.id, ...snap.data() };
 }
 
 export async function closeCashSession(session, summary) {
@@ -156,12 +161,19 @@ export async function closeCashSession(session, summary) {
 }
 
 export async function listCashSessions() {
-  const snap = await getDocs(query(collection(db, "cajas_sesiones"), orderBy("fechaApertura", "desc"), limit(50)));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const snap = await getDocs(collection(db, "cajas_sesiones"));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => {
+      const at = a.fechaApertura?.toDate ? a.fechaApertura.toDate().getTime() : 0;
+      const bt = b.fechaApertura?.toDate ? b.fechaApertura.toDate().getTime() : 0;
+      return bt - at;
+    })
+    .slice(0, 50);
 }
 
 export async function createCashMovement(payload) {
-  const ref = await addDoc(collection(db, "movimientos_caja"), {
+  return addDoc(collection(db, "movimientos_caja"), {
     sesionId: payload.sesionId,
     tipo: payload.tipo,
     concepto: payload.concepto || "",
@@ -170,15 +182,17 @@ export async function createCashMovement(payload) {
     usuarioId: payload.usuarioId || "",
     usuarioNombre: payload.usuarioNombre || ""
   });
-  return ref;
 }
 
 export async function listCashMovements(sessionId) {
-  const snap = await getDocs(query(
-    collection(db, "movimientos_caja"),
-    where("sesionId", "==", sessionId),
-    orderBy("fecha", "desc"),
-    limit(300)
-  ));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const snap = await getDocs(collection(db, "movimientos_caja"));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(m => m.sesionId === sessionId)
+    .sort((a, b) => {
+      const at = a.fecha?.toDate ? a.fecha.toDate().getTime() : 0;
+      const bt = b.fecha?.toDate ? b.fecha.toDate().getTime() : 0;
+      return bt - at;
+    })
+    .slice(0, 300);
 }

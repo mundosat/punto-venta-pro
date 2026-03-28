@@ -1,5 +1,5 @@
 import {
-  auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createManagedUser
+  auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserByAdmin
 } from "./firebase.js";
 import { state } from "./state.js";
 import {
@@ -16,17 +16,6 @@ import { printTicket } from "./ticket.js";
 import { toNumber, formatDateTime, escapeHtml, csvFromRows, downloadTextFile, readFileAsText, parseCsv } from "./utils.js";
 
 const app = document.getElementById("app");
-
-function isAdmin() {
-  return state.userProfile?.rol === "admin";
-}
-
-function canAccess(view) {
-  if (["productos", "kardex", "usuarios", "configuracion"].includes(view)) {
-    return isAdmin();
-  }
-  return true;
-}
 
 onAuthStateChanged(auth, async (user) => {
   state.currentUser = user;
@@ -81,14 +70,17 @@ function bindLogin(message = "") {
 window.addEventListener("hashchange", () => renderApp());
 window.addEventListener("DOMContentLoaded", () => {
   if (!window.location.hash) window.location.hash = "#inicio";
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
 });
 
 async function renderApp() {
   state.currentView = (window.location.hash.replace("#", "") || "inicio");
-  if (!canAccess(state.currentView)) {
+  const restrictedForCashier = ["usuarios", "configuracion"];
+  if (state.userProfile?.rol === "cajero" && restrictedForCashier.includes(state.currentView)) {
     state.currentView = "inicio";
     window.location.hash = "#inicio";
-    alert("Tu rol no tiene acceso a esa pantalla.");
   }
   let content = "";
   const view = state.currentView;
@@ -109,6 +101,7 @@ async function renderApp() {
     content = renderKardex({ items });
   } else if (view === "usuarios") {
     const users = await listUsers().catch(() => []);
+    state.cachedUsers = users;
     content = renderUsuarios({ users });
   } else if (view === "reportes") {
     const sales = await listSales().catch(() => []);
@@ -132,10 +125,10 @@ function bindGlobal() {
 function bindViewActions(view) {
   if (view === "caja") bindCaja();
   if (view === "ventas") bindVentas();
-  if (view === "productos" && isAdmin()) bindProductos();
-  if (view === "usuarios" && isAdmin()) bindUsuarios();
+  if (view === "productos") bindProductos();
+  if (view === "usuarios") bindUsuarios();
   if (view === "reportes") bindReportes();
-  if (view === "configuracion" && isAdmin()) bindConfiguracion();
+  if (view === "configuracion") bindConfiguracion();
 }
 
 async function getSessionSales() {
@@ -210,11 +203,15 @@ function showOpenCashModal() {
   `));
   document.getElementById("cancelModal").onclick = closeModal;
   document.getElementById("confirmOpenCash").onclick = async () => {
-    const montoInicial = toNumber(document.getElementById("cashOpenAmount").value);
-    await openCashSession({ montoInicial, user: state.userProfile });
-    state.activeCashSession = await getOpenCashSession();
-    closeModal();
-    await renderApp();
+    try {
+      const montoInicial = toNumber(document.getElementById("cashOpenAmount").value);
+      state.activeCashSession = await openCashSession({ montoInicial, user: state.userProfile });
+      closeModal();
+      await renderApp();
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo abrir la caja. Revisa las reglas de Firestore y que tu usuario tenga rol admin o cajero.");
+    }
   };
 }
 
@@ -582,11 +579,10 @@ function bindUsuarios() {
   if (btn) btn.onclick = () => showUserModal();
 
   document.querySelectorAll("[data-edit-user]").forEach(btn => {
-    btn.onclick = async () => {
+    btn.onclick = () => {
       const id = btn.getAttribute("data-edit-user");
-      const users = await listUsers().catch(() => []);
-      const user = users.find(u => u.id === id);
-      showUserModal(user || { id });
+      const user = state.cachedUsers?.find(u => u.id === id) || { id };
+      showUserModal(user);
     };
   });
 }
@@ -595,15 +591,10 @@ function showUserModal(user = null) {
   const isEdit = !!user?.id;
   document.body.insertAdjacentHTML("beforeend", modalShell(`
     <h3 class="m0">${isEdit ? "Editar usuario" : "Nuevo usuario automático"}</h3>
-    <div class="alert alert-info mt16">
-      ${isEdit
-        ? "Aquí puedes actualizar nombre, rol y estado del usuario ya registrado."
-        : "Escribe nombre, correo y contraseña. El sistema creará el usuario en Firebase Authentication y guardará su perfil automáticamente en Firestore."}
-    </div>
-    ${isEdit ? `<div class="form-group mt16"><label>UID</label><input class="input" id="uId" value="${escapeHtml(user?.id || "")}" readonly /></div>` : ""}
+    <div class="alert alert-info mt16">${isEdit ? "Edita nombre, rol y estado. Para cambiar contraseña usa Firebase Authentication." : "Este formulario crea la cuenta en Firebase Authentication y guarda el perfil en Firestore de forma automática."}</div>
     <div class="form-group mt16"><label>Nombre</label><input class="input" id="uNombre" value="${escapeHtml(user?.nombre || "")}" /></div>
     <div class="form-group"><label>Correo</label><input class="input" id="uEmail" type="email" value="${escapeHtml(user?.email || "")}" ${isEdit ? "readonly" : ""} /></div>
-    ${!isEdit ? `<div class="form-group"><label>Contraseña</label><input class="input" id="uPassword" type="password" minlength="6" placeholder="Mínimo 6 caracteres" /></div>` : ""}
+    ${isEdit ? "" : `<div class="form-group"><label>Contraseña</label><input class="input" id="uPassword" type="password" placeholder="Mínimo 6 caracteres" /></div>`}
     <div class="grid grid-2">
       <div class="form-group">
         <label>Rol</label>
@@ -629,48 +620,29 @@ function showUserModal(user = null) {
   document.getElementById("saveUserModal").onclick = async () => {
     const nombre = document.getElementById("uNombre").value.trim();
     const email = document.getElementById("uEmail").value.trim();
+    const password = document.getElementById("uPassword")?.value || "";
     const rol = document.getElementById("uRol").value;
     const activo = document.getElementById("uActivo").value === "true";
-
-    if (!nombre || !email) return alert("Completa todos los campos.");
-
-    if (isEdit) {
-      await saveUser(user.id, {
-        nombre,
-        email,
-        rol,
-        activo,
-        actualizadoEn: new Date()
-      });
-      alert("Usuario actualizado correctamente.");
-    } else {
-      const password = document.getElementById("uPassword").value;
-      if (!password || password.length < 6) {
-        return alert("La contraseña debe tener al menos 6 caracteres.");
-      }
-      try {
-        await createManagedUser({
-          email,
-          password,
-          nombre,
-          rol,
-          activo
-        });
-        alert("Usuario creado automáticamente.");
-      } catch (error) {
-        console.error(error);
-        alert("No se pudo crear el usuario: " + (error?.message || error));
-        return;
-      }
+    if (!nombre || !email || (!isEdit && password.length < 6)) {
+      return alert(isEdit ? "Completa nombre y correo." : "Completa nombre, correo y una contraseña de al menos 6 caracteres.");
     }
-
-    closeModal();
-    await renderApp();
+    try {
+      if (isEdit) {
+        await saveUser(user.id, { nombre, email, rol, activo });
+      } else {
+        await createUserByAdmin({ email, password, nombre, rol, activo });
+      }
+      closeModal();
+      await renderApp();
+      alert(isEdit ? "Usuario actualizado." : "Usuario creado correctamente.");
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo guardar el usuario: " + (error?.message || error));
+    }
   };
 }
 
 function bindReportes() {
-
   const btnVentas = document.getElementById("btnExportVentasCSV");
   if (btnVentas) {
     btnVentas.onclick = async () => {

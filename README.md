@@ -1,103 +1,28 @@
-# Punto de Venta PRO TOTAL - GitHub Pages + Firebase Spark
+# Punto de Venta PRO TOTAL
 
-Sistema web estático listo para subir a **GitHub** y conectar con **Firebase** sin usar servicios que normalmente disparan cobros.
-Está pensado para funcionar con:
+Versión mejorada para GitHub Pages + Firebase.
 
-- GitHub Pages
-- Firebase Authentication (correo y contraseña)
-- Cloud Firestore
-- Impresión local de ticket desde el navegador
-- Logo de tienda guardado en Firestore como **URL** o **Base64**
-- Sin Firebase Storage
-- Sin Cloud Functions
+## Mejoras incluidas
+- creación automática de usuarios desde el panel Usuarios
+- corrección de apertura de caja evitando consultas que suelen pedir índices extra en Firestore
+- control de acceso por rol
+- reportes más completos
+- comprobante de venta estilo Ecuador
+- PWA básica para instalar en celular
 
-## Módulos incluidos
+## Importante sobre facturación Ecuador
+Esta versión deja el comprobante y la base comercial listos, pero **no** implementa firma electrónica ni envío al SRI. Eso requiere un backend o servicio adicional.
 
-- Login
-- Dashboard
-- Caja (apertura, ingreso, egreso, cierre)
-- Ventas
-- Productos
-- Kardex
-- Usuarios
-- Reportes
-- Configuración de tienda
-- Ticket con opción:
-  - Cobrar e imprimir
-  - Cobrar sin imprimir
+## Cómo usar
+1. Configura `assets/js/firebase-config.js` con los datos reales de Firebase.
+2. Activa Email/Password en Authentication.
+3. Crea tu primer admin en Authentication.
+4. Crea en Firestore el documento `usuarios/{UID}` para ese primer admin.
+5. Crea `configuracion/general`.
+6. Publica `firestore.rules`.
+7. Sube a GitHub Pages.
 
-## 1) Crear proyecto Firebase
-
-1. Entra a Firebase Console
-2. Crea un proyecto
-3. Activa:
-   - Authentication > Email/Password
-   - Firestore Database (modo de producción o pruebas mientras configuras)
-4. Copia la configuración web del proyecto
-
-## 2) Pegar tu configuración
-
-Abre:
-
-`assets/js/firebase-config.js`
-
-y pega los datos de tu proyecto.
-
-## 3) Crear primer usuario administrador
-
-1. En Authentication crea el usuario administrador.
-2. Copia su `uid`.
-3. En Firestore crea el documento:
-
-Colección: `usuarios`
-Documento: `UID_DEL_USUARIO`
-
-Campos sugeridos:
-- nombre: "Administrador"
-- email: "tu_correo@ejemplo.com"
-- rol: "admin"
-- activo: true
-- creadoEn: fecha actual
-
-## 4) Crear configuración inicial
-
-Colección: `configuracion`
-Documento: `general`
-
-Campos sugeridos:
-- nombreTienda: "Mi Tienda"
-- ruc: ""
-- telefono: ""
-- direccion: ""
-- moneda: "$"
-- impuesto: 0
-- imprimirAutomatico: false
-- logoMode: "url"
-- logoValue: ""
-- ticketFooter: "Gracias por su compra"
-
-## 5) Reglas Firestore
-
-Publica el archivo:
-
-`firestore.rules`
-
-## 6) Subir a GitHub
-
-Sube todo este proyecto a tu repositorio.
-
-Luego activa GitHub Pages desde:
-Settings > Pages
-
-Usa la rama principal y la carpeta raíz.
-
-## 7) Importante para GitHub Pages
-
-Si tu repositorio no está en el dominio raíz, esta app detecta la base del proyecto automáticamente.
-No necesita build ni npm.
-
-## Colecciones que usa
-
+## Colecciones
 - usuarios
 - configuracion
 - productos
@@ -105,54 +30,3 @@ No necesita build ni npm.
 - movimientos_caja
 - ventas
 - kardex
-
-## Notas
-
-- El logo se guarda en Firestore como URL o Base64. No usa Storage.
-- El ticket se imprime con `window.print()`.
-- El reporte exporta CSV.
-- La importación de productos permite CSV simple.
-
-## Estructura CSV para importar productos
-
-Encabezados:
-
-codigo,nombre,categoria,precio,stock,minimo,activo
-
-Ejemplo:
-
-P001,Arroz 5kg,Granos,24.50,10,2,true
-P002,Azúcar 1kg,Abarrotes,2.10,30,5,true
-
-## Usuario y roles
-
-Roles soportados:
-- admin
-- cajero
-
-Permisos:
-- admin: acceso total
-- cajero: ventas, caja, dashboard, reportes básicos
-
-## Recomendación para plan gratuito
-
-Mantener:
-- pocos usuarios simultáneos
-- no guardar imágenes pesadas en base64
-- no subir archivos grandes
-- no usar Storage ni Functions
-
-
-
-## Mejoras NIVEL PRO
-
-- Creación automática de usuarios desde la pantalla Usuarios
-- Roles visuales: admin y cajero
-- Menú protegido según el rol
-- Edición de usuarios sin tocar Authentication manualmente
-- Sigue funcionando en GitHub Pages con Firebase Spark
-
-### Importante sobre usuarios automáticos
-
-Para crear usuarios desde el sistema, debes iniciar sesión como **admin**.
-El sistema crea el usuario en Firebase Authentication usando una app secundaria y luego guarda su perfil en Firestore con el UID correcto.

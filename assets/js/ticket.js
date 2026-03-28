@@ -18,10 +18,10 @@ export function printTicket(sale) {
   <html lang="es">
   <head>
     <meta charset="UTF-8">
-    <title>Ticket</title>
+    <title>Comprobante</title>
     <style>
       body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:16px;color:#111}
-      .wrap{max-width:320px;margin:0 auto}
+      .wrap{max-width:340px;margin:0 auto}
       .center{text-align:center}
       .logo{width:70px;height:70px;object-fit:cover;border-radius:12px}
       table{width:100%;border-collapse:collapse;font-size:12px}
@@ -30,19 +30,21 @@ export function printTicket(sale) {
       .total{font-size:20px;font-weight:700}
       .muted{color:#555;font-size:12px}
       .sep{border-top:1px dashed #999;margin:8px 0}
+      .title{font-size:18px;font-weight:700}
     </style>
   </head>
   <body>
     <div class="wrap">
       <div class="center">
         ${logoHtml}
-        <h2 style="margin:6px 0">${escapeHtml(cfg.nombreTienda || "Mi Tienda")}</h2>
-        <div class="muted">${escapeHtml(cfg.ruc || "")}</div>
+        <div class="title">${escapeHtml(cfg.nombreTienda || "Mi Tienda")}</div>
+        <div class="muted">RUC: ${escapeHtml(cfg.ruc || "")}</div>
         <div class="muted">${escapeHtml(cfg.direccion || "")}</div>
         <div class="muted">${escapeHtml(cfg.telefono || "")}</div>
+        <div class="muted">Nota de venta / factura simple</div>
       </div>
       <div class="sep"></div>
-      <div><strong>Ticket:</strong> ${String(sale.numero).padStart(6, "0")}</div>
+      <div><strong>Comprobante:</strong> ${String(sale.numero).padStart(6, "0")}</div>
       <div><strong>Fecha:</strong> ${formatDateTime(sale.fecha)}</div>
       <div><strong>Cliente:</strong> ${escapeHtml(sale.cliente || "Consumidor Final")}</div>
       <div><strong>Cajero:</strong> ${escapeHtml(sale.usuarioNombre || "")}</div>
@@ -60,12 +62,13 @@ export function printTicket(sale) {
       </table>
       <div class="sep"></div>
       <div><strong>Subtotal:</strong> <span style="float:right">${currency(sale.subtotal, cfg.moneda)}</span></div>
-      <div><strong>Impuesto:</strong> <span style="float:right">${currency(sale.impuesto, cfg.moneda)}</span></div>
+      <div><strong>IVA:</strong> <span style="float:right">${currency(sale.impuesto, cfg.moneda)}</span></div>
       <div class="total">TOTAL <span style="float:right">${currency(sale.total, cfg.moneda)}</span></div>
       <div><strong>Pagó con:</strong> <span style="float:right">${currency(sale.pagadoCon, cfg.moneda)}</span></div>
       <div><strong>Cambio:</strong> <span style="float:right">${currency(sale.cambio, cfg.moneda)}</span></div>
       <div class="sep"></div>
       <div class="center muted">${escapeHtml(cfg.ticketFooter || "Gracias por su compra")}</div>
+      <div class="center muted">Este comprobante no reemplaza la facturación electrónica del SRI.</div>
     </div>
     <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),500);};</script>
   </body>
@@ -83,8 +86,5 @@ export function printTicket(sale) {
 
 function buildLogoHtml(cfg) {
   if (!cfg.logoValue) return "";
-  if (cfg.logoMode === "base64") {
-    return `<img class="logo" src="${cfg.logoValue}" alt="Logo" />`;
-  }
   return `<img class="logo" src="${cfg.logoValue}" alt="Logo" />`;
 }

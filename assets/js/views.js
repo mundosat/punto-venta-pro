@@ -350,7 +350,7 @@ export function renderUsuarios({ users = [] }) {
     ${topbar("Usuarios", `<button class="btn btn-primary" id="btnNuevoUsuario">Nuevo usuario automático</button>`)}
     <section class="card">
       <div class="alert alert-info">
-        Desde aquí puedes crear usuarios automáticamente. El sistema genera el usuario en Authentication y también lo guarda en Firestore sin pedir UID manual.
+        Desde aquí el administrador crea usuarios automáticos. El sistema genera la cuenta en Firebase Authentication y guarda el perfil en Firestore sin pedir UID manual.
       </div>
       <div class="table-wrap mt16">
         <table class="table">
@@ -367,6 +367,16 @@ export function renderReportes({ sales = [], products = [] }) {
   const totalVentas = sales.reduce((a, s) => a + Number(s.total || 0), 0);
   const totalUnidades = sales.reduce((acc, s) => acc + (s.items || []).reduce((a, i) => a + Number(i.cantidad || 0), 0), 0);
   const lowStock = products.filter(p => Number(p.stock || 0) <= Number(p.minimo || 0));
+  const ventasHoy = sales.filter(s => formatDate(s.fecha) === hoy);
+  const totalHoy = ventasHoy.reduce((a, s) => a + Number(s.total || 0), 0);
+  const topMap = new Map();
+  for (const sale of sales) {
+    for (const item of sale.items || []) {
+      const key = item.nombre || 'Producto';
+      topMap.set(key, (topMap.get(key) || 0) + Number(item.cantidad || 0));
+    }
+  }
+  const topProducts = [...topMap.entries()].sort((a,b) => b[1]-a[1]).slice(0,5);
 
   const rows = sales.map(s => `
     <tr>
@@ -374,6 +384,8 @@ export function renderReportes({ sales = [], products = [] }) {
       <td>${formatDateTime(s.fecha)}</td>
       <td>${escapeHtml(s.cliente || "Consumidor Final")}</td>
       <td>${escapeHtml(s.usuarioNombre || "")}</td>
+      <td class="right">${currency(s.subtotal, state.config.moneda)}</td>
+      <td class="right">${currency(s.impuesto, state.config.moneda)}</td>
       <td class="right">${currency(s.total, state.config.moneda)}</td>
     </tr>
   `).join("");
@@ -388,34 +400,54 @@ export function renderReportes({ sales = [], products = [] }) {
     </tr>
   `).join("");
 
+  const topRows = topProducts.map(([name, qty]) => `
+    <tr>
+      <td>${escapeHtml(name)}</td>
+      <td class="right">${qty}</td>
+    </tr>
+  `).join("");
+
   return `
     ${topbar("Reportes", `
       <button class="btn btn-secondary" id="btnExportVentasCSV">Exportar ventas CSV</button>
       <button class="btn btn-secondary" id="btnExportProductosCSV">Exportar productos CSV</button>
     `)}
 
-    <div class="grid grid-3">
+    <div class="grid grid-4">
       <div class="stat"><div class="label">Fecha</div><div class="value">${escapeHtml(hoy)}</div><div class="hint">Resumen actual</div></div>
       <div class="stat"><div class="label">Total vendido</div><div class="value">${currency(totalVentas, state.config.moneda)}</div><div class="hint">Historial visible</div></div>
+      <div class="stat"><div class="label">Ventas de hoy</div><div class="value">${currency(totalHoy, state.config.moneda)}</div><div class="hint">Caja diaria</div></div>
       <div class="stat"><div class="label">Unidades vendidas</div><div class="value">${totalUnidades}</div><div class="hint">Suma de cantidades</div></div>
     </div>
 
-    <section class="card mt16">
-      <h3 class="m0">Ventas</h3>
-      <div class="table-wrap mt12">
-        <table class="table">
-          <thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th>Usuario</th><th class="right">Total</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="5" class="center">Sin ventas</td></tr>'}</tbody>
-        </table>
-      </div>
-    </section>
+    <div class="grid grid-2 mt16">
+      <section class="card">
+        <h3 class="m0">Productos más vendidos</h3>
+        <div class="table-wrap mt12">
+          <table class="table">
+            <thead><tr><th>Producto</th><th class="right">Cantidad</th></tr></thead>
+            <tbody>${topRows || '<tr><td colspan="2" class="center">Sin datos todavía</td></tr>'}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3 class="m0">Productos con stock bajo</h3>
+        <div class="table-wrap mt12">
+          <table class="table">
+            <thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th class="right">Stock</th><th class="right">Mínimo</th></tr></thead>
+            <tbody>${lowRows || '<tr><td colspan="5" class="center">Todo bien por ahora</td></tr>'}</tbody>
+          </table>
+        </div>
+      </section>
+    </div>
 
     <section class="card mt16">
-      <h3 class="m0">Productos con stock bajo</h3>
+      <h3 class="m0">Resumen de ventas</h3>
       <div class="table-wrap mt12">
         <table class="table">
-          <thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th class="right">Stock</th><th class="right">Mínimo</th></tr></thead>
-          <tbody>${lowRows || '<tr><td colspan="5" class="center">Todo bien por ahora</td></tr>'}</tbody>
+          <thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th>Usuario</th><th class="right">Subtotal</th><th class="right">IVA</th><th class="right">Total</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="7" class="center">Sin ventas</td></tr>'}</tbody>
         </table>
       </div>
     </section>

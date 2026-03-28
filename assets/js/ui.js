@@ -22,7 +22,7 @@ export function renderLogin() {
       </div>
       <button class="btn btn-primary btn-block" id="btnLogin">Entrar al sistema</button>
       <div class="alert alert-info mt16">
-        Inicia sesión con un usuario creado en Firebase Authentication y vinculado en la colección <strong>usuarios</strong>.
+        Crea tu primer usuario administrador en Firebase Authentication y luego inicia sesión aquí.
       </div>
     </div>
   </section>`;
@@ -32,7 +32,7 @@ export function renderLayout(content) {
   const user = state.userProfile || {};
   const cfg = state.config || {};
   const logo = buildSidebarLogo(cfg);
-  const isAdmin = user.rol === "admin";
+  const isAdmin = user.rol === 'admin';
   return `
   <div class="layout">
     <aside class="sidebar">
@@ -48,11 +48,11 @@ export function renderLayout(content) {
         ${navLink("inicio", "🏠 Inicio")}
         ${navLink("caja", "💵 Caja")}
         ${navLink("ventas", "🛒 Ventas")}
-        ${isAdmin ? navLink("productos", "📦 Productos") : ""}
-        ${isAdmin ? navLink("kardex", "📚 Kardex") : ""}
-        ${isAdmin ? navLink("usuarios", "👥 Usuarios") : ""}
+        ${navLink("productos", "📦 Productos")}
+        ${navLink("kardex", "📚 Kardex")}
         ${navLink("reportes", "📈 Reportes")}
-        ${isAdmin ? navLink("configuracion", "⚙️ Configuración") : ""}
+        ${isAdmin ? navLink("usuarios", "👥 Usuarios") : ''}
+        ${isAdmin ? navLink("configuracion", "⚙️ Configuración") : ''}
       </nav>
 
       <div class="sidebar-footer">
