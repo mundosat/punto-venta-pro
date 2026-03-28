@@ -65,12 +65,7 @@ function bindLogin(message = "") {
     } catch (err) {
       alert("No se pudo iniciar sesión: " + (err?.message || err));
     }
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
 }
 
 window.addEventListener("hashchange", () => renderApp());
@@ -179,12 +174,7 @@ function bindCaja() {
         console.error(err);
         alert("No se pudo guardar el movimiento.");
       }
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 
   const closeBtn = document.getElementById("btnCerrarCaja");
@@ -201,12 +191,7 @@ function bindCaja() {
       await closeCashSession(state.activeCashSession, { ingresos, egresos, totalVentas, montoFinal });
       state.activeCashSession = null;
       await renderApp();
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 }
 
@@ -235,12 +220,7 @@ function showOpenCashModal() {
       const message = error?.message || String(error);
       alert("No se pudo abrir la caja. Detalle: " + message);
     }
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
 }
 
 function bindVentas() {
@@ -252,12 +232,7 @@ function bindVentas() {
       if (Number(product.stock || 0) <= 0) return alert("No hay stock disponible.");
       addToCart(product);
       renderApp();
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   });
 
   document.querySelectorAll("[data-cart-inc]").forEach(btn => {
@@ -265,12 +240,7 @@ function bindVentas() {
       const id = btn.getAttribute("data-cart-inc");
       changeQty(id, 1);
       renderApp();
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   });
 
   document.querySelectorAll("[data-cart-dec]").forEach(btn => {
@@ -278,12 +248,7 @@ function bindVentas() {
       const id = btn.getAttribute("data-cart-dec");
       changeQty(id, -1);
       renderApp();
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   });
 
   document.querySelectorAll("[data-cart-remove]").forEach(btn => {
@@ -291,12 +256,7 @@ function bindVentas() {
       const id = btn.getAttribute("data-cart-remove");
       state.cart = state.cart.filter(i => i.id !== id);
       renderApp();
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   });
 
   const payInput = document.getElementById("pagadoCon");
@@ -307,12 +267,7 @@ function bindVentas() {
       const change = Math.max(0, paid - total);
       const changeInput = document.getElementById("cambioVenta");
       if (changeInput) changeInput.value = change.toFixed(2);
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
     payInput.oninput = syncChange;
     syncChange();
   }
@@ -321,12 +276,7 @@ function bindVentas() {
   if (clearBtn) clearBtn.onclick = async () => {
     state.cart = [];
     await renderApp();
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
 
   const btnPrint = document.getElementById("btnCobrarImprimir");
   if (btnPrint) btnPrint.onclick = () => chargeSale(true);
@@ -339,12 +289,7 @@ function bindVentas() {
     clientSelect.value = state.selectedClientId || "final";
     clientSelect.onchange = () => {
       state.selectedClientId = clientSelect.value || "final";
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 
   const registerClientBtn = document.getElementById("btnRegistrarCliente");
@@ -368,12 +313,7 @@ function bindVentas() {
         total: precio * cantidad
       });
       renderApp();
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 
   const search = document.getElementById("buscarProducto");
@@ -390,12 +330,7 @@ function bindVentas() {
         if (visible && !firstVisible) firstVisible = card;
       });
       return firstVisible;
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
     search.oninput = applySearch;
     search.onkeydown = (e) => {
       if (e.key === "Enter") {
@@ -406,12 +341,7 @@ function bindVentas() {
           search.select();
         }
       }
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
     applySearch();
   }
 }
@@ -462,12 +392,7 @@ async function showClientModal() {
       console.error(err);
       alert("No se pudo guardar el cliente.");
     }
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
 }
 
 function addToCart(product) {
@@ -563,12 +488,7 @@ async function chargeSale(imprimir) {
         precio: i.precio,
         total: i.total
       }))
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
 
     const ref = await createSale(salePayload);
 
@@ -583,12 +503,7 @@ async function chargeSale(imprimir) {
       id: ref.id,
       ...salePayload,
       fecha: new Date()
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
 
     state.cart = [];
     if (imprimir || state.config.imprimirAutomatico) {
@@ -611,12 +526,7 @@ function bindProductos() {
       const id = btn.getAttribute("data-edit-product");
       const product = state.products.find(p => p.id === id);
       if (product) showProductModal(product);
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   });
 
   document.querySelectorAll("[data-adjust-stock]").forEach(btn => {
@@ -624,12 +534,7 @@ function bindProductos() {
       const id = btn.getAttribute("data-adjust-stock");
       const product = state.products.find(p => p.id === id);
       if (product) showAdjustStockModal(product);
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   });
 
   document.querySelectorAll("[data-delete-product]").forEach(btn => {
@@ -648,12 +553,7 @@ function bindProductos() {
         console.error(error);
         alert("No se pudo eliminar el producto.");
       }
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   });
 
   const search = document.getElementById("buscarProductoTabla");
@@ -663,12 +563,7 @@ function bindProductos() {
       document.querySelectorAll(".table tbody tr[data-product-row]").forEach(row => {
         row.classList.toggle("hidden", !row.textContent.toLowerCase().includes(q));
       });
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 
   const importBtn = document.getElementById("btnImportarProductos");
@@ -689,12 +584,7 @@ function bindProductos() {
       const csv = csvFromRows(rows, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
       downloadTextFile(`productos_${new Date().toISOString().slice(0,10)}.csv`, csv, "text/csv;charset=utf-8");
       alert("Exportación completada.");
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 
   const templateBtn = document.getElementById("btnPlantillaProductos");
@@ -706,12 +596,7 @@ function bindProductos() {
       ];
       const csv = csvFromRows(sample, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
       downloadTextFile("plantilla_productos.csv", csv, "text/csv;charset=utf-8");
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 }
 
@@ -750,18 +635,7 @@ function showProductModal(product = null) {
     </div>
   `));
   document.getElementById("cancelModal").onclick = closeModal;
-  let guardandoProducto = false;
-
-document.getElementById("saveProductModal").onclick = async () => {
-
-  if (guardandoProducto) return;
-  guardandoProducto = true;
-
-  const btn = document.getElementById("saveProductModal");
-  btn.disabled = true;
-  btn.innerText = "Guardando...";
-
-  try {
+  document.getElementById("saveProductModal").onclick = async () => {
     const payload = {
       codigo: document.getElementById("pCodigo").value.trim(),
       nombre: document.getElementById("pNombre").value.trim(),
@@ -770,12 +644,7 @@ document.getElementById("saveProductModal").onclick = async () => {
       stock: toNumber(document.getElementById("pStock").value),
       minimo: toNumber(document.getElementById("pMinimo").value),
       activo: document.getElementById("pActivo").checked
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
     if (!payload.nombre) return alert("Debes escribir el nombre.");
 
     const duplicate = findExistingProductByCode(payload.codigo, product?.id || null);
@@ -797,12 +666,7 @@ document.getElementById("saveProductModal").onclick = async () => {
     state.products = await listProducts();
     closeModal();
     await renderApp();
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
 }
 
 function showAdjustStockModal(product) {
@@ -844,12 +708,7 @@ function showAdjustStockModal(product) {
     state.products = await listProducts();
     closeModal();
     await renderApp();
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
 }
 
 function showImportProductsModal() {
@@ -874,12 +733,7 @@ function showImportProductsModal() {
     ];
     const csv = csvFromRows(sample, ["codigo", "nombre", "categoria", "precio", "stock", "minimo", "activo"]);
     downloadTextFile("plantilla_productos.csv", csv, "text/csv;charset=utf-8");
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
   document.getElementById("confirmImportProducts").onclick = async () => {
     const file = document.getElementById("csvFileProducts").files[0];
     if (!file) return alert("Selecciona un CSV.");
@@ -900,12 +754,7 @@ function showImportProductsModal() {
         stock: toNumber(row.stock),
         minimo: toNumber(row.minimo),
         activo: String(row.activo || "true").toLowerCase() !== "false"
-      } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+      };
       if (!payload.nombre) {
         omitidos++;
         continue;
@@ -933,12 +782,7 @@ function showImportProductsModal() {
     closeModal();
     await renderApp();
     alert(`Importación completada. Creados: ${creados}. Actualizados: ${actualizados}. Omitidos: ${omitidos}.`);
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
 }
 
 function bindUsuarios() {
@@ -948,19 +792,9 @@ function bindUsuarios() {
   document.querySelectorAll("[data-edit-user]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-edit-user");
-      const user = state.cachedUsers?.find(u => u.id === id) || { id } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+      const user = state.cachedUsers?.find(u => u.id === id) || { id };
       showUserModal(user);
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   });
 }
 
@@ -1016,12 +850,7 @@ function showUserModal(user = null) {
       console.error(error);
       alert("No se pudo guardar el usuario: " + (error?.message || error));
     }
-  } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+  };
 }
 
 function bindReportes() {
@@ -1042,12 +871,7 @@ function bindReportes() {
         Number(s.cambio || 0).toFixed(2)
       ]));
       downloadTextFile("reporte_ventas.csv", csvFromRows(rows), "text/csv;charset=utf-8");
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
   const btnProducts = document.getElementById("btnExportProductosCSV");
   if (btnProducts) {
@@ -1063,12 +887,7 @@ function bindReportes() {
         p.activo !== false ? "true" : "false"
       ]));
       downloadTextFile("reporte_productos.csv", csvFromRows(rows), "text/csv;charset=utf-8");
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 }
 
@@ -1081,12 +900,7 @@ function bindConfiguracion() {
       const base64 = await fileToDataUrl(file);
       const preview = document.querySelector(".logo-preview");
       if (preview) preview.innerHTML = `<img src="${base64}" alt="Logo">`;
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 
   const btn = document.getElementById("btnGuardarConfiguracion");
@@ -1120,12 +934,7 @@ function bindConfiguracion() {
       await getConfig();
       alert("Configuración guardada.");
       await renderApp();
-    } finally {
-    guardandoProducto = false;
-    btn.disabled = false;
-    btn.innerText = "Crear producto";
-  }
-};
+    };
   }
 }
 
