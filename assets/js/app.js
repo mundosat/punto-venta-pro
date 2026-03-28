@@ -3,7 +3,7 @@ import {
 } from "./firebase.js";
 import { state } from "./state.js";
 import {
-  getConfig, getUserProfile, listProducts, createProduct, updateProduct, adjustStock, listKardex,
+  getConfig, getUserProfile, listProducts, createProduct, updateProduct, deleteProduct, adjustStock, listKardex,
   listUsers, saveUser, listSales, getNextSaleNumber, createSale, listClients, createClient,
   getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig
 } from "./api.js";
@@ -537,6 +537,27 @@ function bindProductos() {
     };
   });
 
+  document.querySelectorAll("[data-delete-product]").forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute("data-delete-product");
+      const product = state.products.find(p => p.id === id);
+      if (!product) return;
+      const ok = confirm(`¿Eliminar el producto "${product.nombre}"? Esta acción no se puede deshacer.`);
+      if (!ok) return;
+      try {
+        btn.disabled = true;
+        await deleteProduct(product.id);
+        showToast("Producto eliminado");
+        state.products = await listProducts();
+        await renderApp();
+      } catch (err) {
+        console.error(err);
+        alert("No se pudo eliminar el producto.");
+        btn.disabled = false;
+      }
+    };
+  });
+
   const search = document.getElementById("buscarProductoTabla");
   if (search) {
     search.oninput = () => {
@@ -556,7 +577,7 @@ function showProductModal(product = null) {
   document.body.insertAdjacentHTML("beforeend", modalShell(`
     <h3 class="m0">${isEdit ? "Editar producto" : "Nuevo producto"}</h3>
     <div class="grid grid-2 mt16">
-      <div class="form-group"><label>Código</label><input class="input" id="pCodigo" value="${escapeHtml(product?.codigo || "")}" /></div>
+      <div class="form-group"><label>Código</label><input class="input" id="pCodigo" value="${escapeHtml(product?.codigo || generateProductCode())}" /></div>
       <div class="form-group"><label>Nombre</label><input class="input" id="pNombre" value="${escapeHtml(product?.nombre || "")}" /></div>
     </div>
     <div class="grid grid-2">
@@ -565,7 +586,7 @@ function showProductModal(product = null) {
     </div>
     <div class="grid grid-2">
       <div class="form-group"><label>Stock</label><input class="input" id="pStock" type="number" step="1" value="${Number(product?.stock || 0)}" /></div>
-      <div class="form-group"><label>Mínimo</label><input class="input" id="pMinimo" type="number" step="1" value="${Number(product?.minimo || 0)}" /></div>
+      <div class="form-group"><label>Mínimo</label><input class="input" id="pMinimo" type="number" step="1" value="${Number(product?.minimo || 1)}" /></div>
     </div>
     <div class="form-group">
       <label><input type="checkbox" id="pActivo" ${product?.activo !== false ? "checked" : ""} /> Activo</label>
@@ -575,10 +596,18 @@ function showProductModal(product = null) {
       <button class="btn btn-secondary" id="cancelModal">Cancelar</button>
     </div>
   `));
-  document.getElementById("cancelModal").onclick = closeModal;
-  document.getElementById("saveProductModal").onclick = async () => {
+
+  const codeInput = document.getElementById("pCodigo");
+  const nameInput = document.getElementById("pNombre");
+  const saveBtn = document.getElementById("saveProductModal");
+  const cancelBtn = document.getElementById("cancelModal");
+
+  cancelBtn.onclick = closeModal;
+  setTimeout(() => (isEdit ? nameInput : codeInput)?.focus(), 0);
+
+  const saveProductForm = async () => {
     const payload = {
-      codigo: document.getElementById("pCodigo").value.trim(),
+      codigo: document.getElementById("pCodigo").value.trim() || generateProductCode(),
       nombre: document.getElementById("pNombre").value.trim(),
       categoria: document.getElementById("pCategoria").value.trim() || "General",
       precio: toNumber(document.getElementById("pPrecio").value),
@@ -586,26 +615,58 @@ function showProductModal(product = null) {
       minimo: toNumber(document.getElementById("pMinimo").value),
       activo: document.getElementById("pActivo").checked
     };
-    if (!payload.nombre) return alert("Debes escribir el nombre.");
-    if (isEdit) {
-      const previousStock = Number(product.stock || 0);
-      await updateProduct(product.id, payload);
-      const diff = Number(payload.stock || 0) - previousStock;
-      if (diff !== 0) {
-        await adjustStock({ ...product, stock: previousStock }, diff, "ajuste", "ajuste_manual", state.userProfile);
+
+    if (!payload.nombre) {
+      showToast("Escribe el nombre del producto", "warn");
+      document.getElementById("pNombre").focus();
+      return;
+    }
+
+    try {
+      saveBtn.disabled = true;
+      saveBtn.textContent = isEdit ? "Guardando..." : "Creando...";
+
+      if (isEdit) {
+        const previousStock = Number(product.stock || 0);
+        await updateProduct(product.id, payload);
+        const diff = Number(payload.stock || 0) - previousStock;
+        if (diff !== 0) {
+          await adjustStock({ ...product, stock: previousStock }, diff, "ajuste", "ajuste_manual", state.userProfile);
+        }
+        state.products = await listProducts();
+        showToast("Producto actualizado");
+        closeModal();
+        await renderApp();
+        return;
       }
-    } else {
-      const ref = await createProduct(payload);
+
+      const ref = await createProduct({ ...payload, stock: 0 });
       if (payload.stock !== 0) {
         await adjustStock({ ...payload, id: ref.id, stock: 0 }, Number(payload.stock || 0), "creacion", "creacion_producto", state.userProfile);
       }
+      state.products = await listProducts();
+      showToast("Producto guardado");
+      await renderApp();
+      requestAnimationFrame(() => {
+        showProductModal();
+      });
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo guardar el producto.");
+      saveBtn.disabled = false;
+      saveBtn.textContent = isEdit ? "Guardar cambios" : "Crear producto";
     }
-    state.products = await listProducts();
-    mostrarToast("✅ Producto guardado");
-    limpiarRapido();
-    state.products = await listProducts();
-    await renderApp();
   };
+
+  saveBtn.onclick = saveProductForm;
+  [codeInput, nameInput, document.getElementById("pCategoria"), document.getElementById("pPrecio"), document.getElementById("pStock"), document.getElementById("pMinimo")].forEach(el => {
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveProductForm();
+      }
+    });
+  });
 }
 
 function showAdjustStockModal(product) {
@@ -645,9 +706,7 @@ function showAdjustStockModal(product) {
     if (next < 0) return alert("No puedes dejar el stock en negativo.");
     await adjustStock(product, signed, "ajuste", refText, state.userProfile);
     state.products = await listProducts();
-    mostrarToast("✅ Producto guardado");
-    limpiarRapido();
-    state.products = await listProducts();
+    closeModal();
     await renderApp();
   };
 }
@@ -688,9 +747,7 @@ function showImportProductsModal() {
       }
     }
     state.products = await listProducts();
-    mostrarToast("✅ Producto guardado");
-    limpiarRapido();
-    state.products = await listProducts();
+    closeModal();
     await renderApp();
     alert("Importación completada.");
   };
@@ -847,6 +904,22 @@ function bindConfiguracion() {
       await renderApp();
     };
   }
+}
+
+function generateProductCode() {
+  return String(Date.now());
+}
+
+function showToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.className = `app-toast ${type === "warn" ? "warn" : "success"}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 250);
+  }, 1800);
 }
 
 function closeModal() {

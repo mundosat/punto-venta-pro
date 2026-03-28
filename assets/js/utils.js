@@ -110,29 +110,3 @@ function splitCsvLine(line) {
   result.push(current);
   return result;
 }
-
-
-export function mostrarToast(msg){
-  const t=document.createElement("div");
-  t.innerText=msg;
-  t.style.position="fixed";
-  t.style.bottom="20px";
-  t.style.right="20px";
-  t.style.background="#22c55e";
-  t.style.color="#fff";
-  t.style.padding="10px 18px";
-  t.style.borderRadius="6px";
-  t.style.zIndex="9999";
-  document.body.appendChild(t);
-  setTimeout(()=>t.remove(),1500);
-}
-
-export function limpiarRapido(){
-  const ids=["pNombre","pPrecio","pStock","pMinimo"];
-  ids.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.value="";
-  });
-  const nombre=document.getElementById("pNombre");
-  if(nombre) nombre.focus();
-}
