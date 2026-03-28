@@ -104,22 +104,3 @@ export function topbar(title, actions = "") {
 export function modalShell(content) {
   return `<div class="modal-backdrop" id="modalBackdrop"><div class="modal">${content}</div></div>`;
 }
-
-
-// BOTONES PRO
-function agregarBotonesPro() {
-    const cont = document.body;
-
-    const btn1 = document.createElement("button");
-    btn1.innerText = "📊 Exportar Productos";
-    btn1.onclick = exportarProductosExcel;
-
-    const btn2 = document.createElement("button");
-    btn2.innerText = "🧹 Limpiar Ventas";
-    btn2.onclick = limpiarVentasAntiguas;
-
-    cont.appendChild(btn1);
-    cont.appendChild(btn2);
-}
-
-window.addEventListener("load", agregarBotonesPro);

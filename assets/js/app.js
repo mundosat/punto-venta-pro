@@ -3,7 +3,7 @@ import {
 } from "./firebase.js";
 import { state } from "./state.js";
 import {
-  getConfig, getUserProfile, listProducts, createProduct, updateProduct, adjustStock, listKardex,
+  getConfig, getUserProfile, listProducts, createProduct, updateProduct, deleteProduct, deleteOldSales, adjustStock, listKardex,
   listUsers, saveUser, listSales, getNextSaleNumber, createSale,
   getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig
 } from "./api.js";
@@ -428,6 +428,25 @@ function bindProductos() {
     };
   });
 
+  document.querySelectorAll("[data-delete-product]").forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute("data-delete-product");
+      const product = state.products.find(p => p.id === id);
+      if (!product) return;
+      const ok = confirm(`¿Eliminar definitivamente el producto "${product.nombre}"?`);
+      if (!ok) return;
+      try {
+        await deleteProduct(id);
+        state.products = await listProducts();
+        await renderApp();
+        alert("Producto eliminado correctamente.");
+      } catch (error) {
+        console.error(error);
+        alert("No se pudo eliminar el producto.");
+      }
+    };
+  });
+
   const search = document.getElementById("buscarProductoTabla");
   if (search) {
     search.oninput = () => {
@@ -440,6 +459,23 @@ function bindProductos() {
 
   const importBtn = document.getElementById("btnImportarProductos");
   if (importBtn) importBtn.onclick = showImportProductsModal;
+
+  const exportBtn = document.getElementById("btnExportProductosExcel");
+  if (exportBtn) {
+    exportBtn.onclick = () => {
+      const rows = [["codigo","nombre","categoria","precio","stock","minimo","activo"]];
+      state.products.forEach(p => rows.push([
+        p.codigo || "",
+        p.nombre || "",
+        p.categoria || "",
+        Number(p.precio || 0).toFixed(2),
+        Number(p.stock || 0),
+        Number(p.minimo || 0),
+        p.activo !== false ? "true" : "false"
+      ]));
+      downloadTextFile("productos.xls", rows.map(r => r.join("\t")).join("\n"), "application/vnd.ms-excel;charset=utf-8");
+    };
+  }
 }
 
 function showProductModal(product = null) {
@@ -467,8 +503,13 @@ function showProductModal(product = null) {
     </div>
   `));
   document.getElementById("cancelModal").onclick = closeModal;
-  document.getElementById("saveProductModal").onclick = async () => {
-    const payload = {
+  document.getElementById("saveProductModal").onclick = async (e) => {
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = isEdit ? "Guardando..." : "Creando...";
+    try {
+      const payload = {
       codigo: document.getElementById("pCodigo").value.trim(),
       nombre: document.getElementById("pNombre").value.trim(),
       categoria: document.getElementById("pCategoria").value.trim() || "General",
@@ -477,23 +518,35 @@ function showProductModal(product = null) {
       minimo: toNumber(document.getElementById("pMinimo").value),
       activo: document.getElementById("pActivo").checked
     };
-    if (!payload.nombre) return alert("Debes escribir el nombre.");
-    if (isEdit) {
-      const previousStock = Number(product.stock || 0);
-      await updateProduct(product.id, payload);
-      const diff = Number(payload.stock || 0) - previousStock;
-      if (diff !== 0) {
-        await adjustStock({ ...product, stock: previousStock }, diff, "ajuste", "ajuste_manual", state.userProfile);
+      if (!payload.nombre) {
+        alert("Debes escribir el nombre.");
+        btn.disabled = false;
+        btn.textContent = isEdit ? "Guardar cambios" : "Crear producto";
+        return;
       }
-    } else {
-      const ref = await createProduct(payload);
-      if (payload.stock !== 0) {
-        await adjustStock({ ...payload, id: ref.id, stock: 0 }, Number(payload.stock || 0), "creacion", "creacion_producto", state.userProfile);
+      if (isEdit) {
+        const previousStock = Number(product.stock || 0);
+        await updateProduct(product.id, payload);
+        const diff = Number(payload.stock || 0) - previousStock;
+        if (diff !== 0) {
+          await adjustStock({ ...product, stock: previousStock }, diff, "ajuste", "ajuste_manual", state.userProfile);
+        }
+      } else {
+        const ref = await createProduct(payload);
+        if (payload.stock !== 0) {
+          await adjustStock({ ...payload, id: ref.id, stock: 0 }, Number(payload.stock || 0), "creacion", "creacion_producto", state.userProfile);
+        }
       }
+      state.products = await listProducts();
+      closeModal();
+      await renderApp();
+      alert(isEdit ? "Producto actualizado correctamente." : "Producto guardado correctamente.");
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo guardar el producto.");
+      btn.disabled = false;
+      btn.textContent = isEdit ? "Guardar cambios" : "Crear producto";
     }
-    state.products = await listProducts();
-    closeModal();
-    await renderApp();
   };
 }
 
@@ -685,6 +738,22 @@ function bindReportes() {
       downloadTextFile("reporte_productos.csv", csvFromRows(rows), "text/csv;charset=utf-8");
     };
   }
+
+  const btnCleanSales = document.getElementById("btnLimpiarVentasAntiguas");
+  if (btnCleanSales) {
+    btnCleanSales.onclick = async () => {
+      const ok = confirm("¿Eliminar ventas con más de 30 días? Esta acción no se puede deshacer.");
+      if (!ok) return;
+      try {
+        const deleted = await deleteOldSales(30);
+        alert(deleted > 0 ? `Se eliminaron ${deleted} ventas antiguas.` : "No había ventas antiguas para eliminar.");
+        await renderApp();
+      } catch (error) {
+        console.error(error);
+        alert("No se pudieron limpiar las ventas antiguas.");
+      }
+    };
+  }
 }
 
 function bindConfiguracion() {
@@ -745,50 +814,4 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-}
-
-
-// NUEVAS FUNCIONES AGREGADAS
-
-let guardando = false;
-
-async function limpiarVentasAntiguas() {
-    if (!confirm("¿Eliminar ventas de más de 30 días?")) return;
-
-    const snapshot = await getDocs(collection(db, "ventas"));
-    const hoy = new Date();
-
-    snapshot.forEach(async (docu) => {
-        const v = docu.data();
-        const fecha = new Date(v.fecha);
-        const dias = (hoy - fecha) / (1000*60*60*24);
-
-        if (dias > 30) {
-            await deleteDoc(doc(db, "ventas", docu.id));
-        }
-    });
-
-    alert("Ventas limpiadas");
-}
-
-async function exportarProductosExcel() {
-    const snapshot = await getDocs(collection(db, "productos"));
-    let contenido = "Codigo\tNombre\tPrecio\tStock\n";
-
-    snapshot.forEach(d => {
-        const p = d.data();
-        contenido += `${p.codigo}\t${p.nombre}\t${p.precio}\t${p.stock}\n`;
-    });
-
-    const blob = new Blob([contenido], {type:"application/vnd.ms-excel"});
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "productos.xls";
-    link.click();
-}
-
-async function eliminarProducto(id){
- if(!confirm("¿Eliminar producto?")) return;
- await deleteDoc(doc(db,"productos",id));
- alert("Eliminado");
 }

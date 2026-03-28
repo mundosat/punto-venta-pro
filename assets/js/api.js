@@ -1,6 +1,6 @@
 
 import {
-  db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, orderBy, limit, serverTimestamp, Timestamp
 } from "./firebase.js";
 import { state } from "./state.js";
@@ -71,6 +71,28 @@ export async function updateProduct(id, payload) {
     activo: payload.activo !== false,
     actualizadoEn: serverTimestamp()
   });
+}
+
+
+export async function deleteProduct(id) {
+  await deleteDoc(doc(db, "productos", id));
+}
+
+export async function deleteOldSales(days = 30) {
+  const snap = await getDocs(query(collection(db, "ventas"), orderBy("fecha", "desc"), limit(300)));
+  const cutoff = new Date(Date.now() - (Number(days || 30) * 24 * 60 * 60 * 1000));
+  let deleted = 0;
+
+  for (const d of snap.docs) {
+    const data = d.data() || {};
+    const fecha = data.fecha?.toDate ? data.fecha.toDate() : (data.fecha ? new Date(data.fecha) : null);
+    if (fecha && fecha < cutoff) {
+      await deleteDoc(doc(db, "ventas", d.id));
+      deleted += 1;
+    }
+  }
+
+  return deleted;
 }
 
 export async function adjustStock(product, quantity, type, reference, user) {
