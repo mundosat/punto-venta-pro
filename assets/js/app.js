@@ -517,6 +517,26 @@ async function chargeSale(imprimir) {
   }
 }
 
+
+function showToast(message, type = "success") {
+  const existing = document.getElementById("appToast");
+  if (existing) existing.remove();
+  const toast = document.createElement("div");
+  toast.id = "appToast";
+  toast.className = `app-toast ${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  window.setTimeout(() => toast.classList.add("visible"), 10);
+  window.setTimeout(() => {
+    toast.classList.remove("visible");
+    window.setTimeout(() => toast.remove(), 250);
+  }, 2200);
+}
+
+function nextProductCode() {
+  return String(Date.now());
+}
+
 function bindProductos() {
   const newBtn = document.getElementById("btnNuevoProducto");
   if (newBtn) newBtn.onclick = () => showProductModal();
@@ -542,18 +562,16 @@ function bindProductos() {
       const id = btn.getAttribute("data-delete-product");
       const product = state.products.find(p => p.id === id);
       if (!product) return;
-      const ok = confirm(`¿Eliminar el producto "${product.nombre}"? Esta acción no se puede deshacer.`);
+      const ok = window.confirm(`¿Eliminar el producto "${product.nombre}"?`);
       if (!ok) return;
       try {
-        btn.disabled = true;
         await deleteProduct(product.id);
-        showToast("Producto eliminado");
         state.products = await listProducts();
         await renderApp();
-      } catch (err) {
-        console.error(err);
-        alert("No se pudo eliminar el producto.");
-        btn.disabled = false;
+        showToast("Producto eliminado.", "danger");
+      } catch (error) {
+        console.error(error);
+        alert("No se pudo eliminar el producto: " + (error?.message || error));
       }
     };
   });
@@ -574,10 +592,11 @@ function bindProductos() {
 
 function showProductModal(product = null) {
   const isEdit = !!product;
+  const autoCode = product?.codigo || nextProductCode();
   document.body.insertAdjacentHTML("beforeend", modalShell(`
     <h3 class="m0">${isEdit ? "Editar producto" : "Nuevo producto"}</h3>
     <div class="grid grid-2 mt16">
-      <div class="form-group"><label>Código</label><input class="input" id="pCodigo" value="${escapeHtml(product?.codigo || generateProductCode())}" /></div>
+      <div class="form-group"><label>Código</label><input class="input" id="pCodigo" value="${escapeHtml(autoCode)}" /></div>
       <div class="form-group"><label>Nombre</label><input class="input" id="pNombre" value="${escapeHtml(product?.nombre || "")}" /></div>
     </div>
     <div class="grid grid-2">
@@ -586,7 +605,7 @@ function showProductModal(product = null) {
     </div>
     <div class="grid grid-2">
       <div class="form-group"><label>Stock</label><input class="input" id="pStock" type="number" step="1" value="${Number(product?.stock || 0)}" /></div>
-      <div class="form-group"><label>Mínimo</label><input class="input" id="pMinimo" type="number" step="1" value="${Number(product?.minimo || 1)}" /></div>
+      <div class="form-group"><label>Mínimo</label><input class="input" id="pMinimo" type="number" step="1" value="${Number(product?.minimo || 0)}" /></div>
     </div>
     <div class="form-group">
       <label><input type="checkbox" id="pActivo" ${product?.activo !== false ? "checked" : ""} /> Activo</label>
@@ -596,18 +615,15 @@ function showProductModal(product = null) {
       <button class="btn btn-secondary" id="cancelModal">Cancelar</button>
     </div>
   `));
+  document.getElementById("cancelModal").onclick = closeModal;
 
-  const codeInput = document.getElementById("pCodigo");
-  const nameInput = document.getElementById("pNombre");
   const saveBtn = document.getElementById("saveProductModal");
-  const cancelBtn = document.getElementById("cancelModal");
+  const nameInput = document.getElementById("pNombre");
+  if (!isEdit) window.setTimeout(() => nameInput?.focus(), 50);
 
-  cancelBtn.onclick = closeModal;
-  setTimeout(() => (isEdit ? nameInput : codeInput)?.focus(), 0);
-
-  const saveProductForm = async () => {
+  const saveHandler = async () => {
     const payload = {
-      codigo: document.getElementById("pCodigo").value.trim() || generateProductCode(),
+      codigo: document.getElementById("pCodigo").value.trim() || nextProductCode(),
       nombre: document.getElementById("pNombre").value.trim(),
       categoria: document.getElementById("pCategoria").value.trim() || "General",
       precio: toNumber(document.getElementById("pPrecio").value),
@@ -615,17 +631,11 @@ function showProductModal(product = null) {
       minimo: toNumber(document.getElementById("pMinimo").value),
       activo: document.getElementById("pActivo").checked
     };
+    if (!payload.nombre) return alert("Debes escribir el nombre.");
 
-    if (!payload.nombre) {
-      showToast("Escribe el nombre del producto", "warn");
-      document.getElementById("pNombre").focus();
-      return;
-    }
-
+    saveBtn.disabled = true;
+    saveBtn.textContent = isEdit ? "Guardando..." : "Creando...";
     try {
-      saveBtn.disabled = true;
-      saveBtn.textContent = isEdit ? "Guardando..." : "Creando...";
-
       if (isEdit) {
         const previousStock = Number(product.stock || 0);
         await updateProduct(product.id, payload);
@@ -634,38 +644,44 @@ function showProductModal(product = null) {
           await adjustStock({ ...product, stock: previousStock }, diff, "ajuste", "ajuste_manual", state.userProfile);
         }
         state.products = await listProducts();
-        showToast("Producto actualizado");
         closeModal();
         await renderApp();
-        return;
+        showToast("Producto actualizado.");
+      } else {
+        const ref = await createProduct({ ...payload, stock: 0 });
+        if (payload.stock !== 0) {
+          await adjustStock({ ...payload, id: ref.id, stock: 0 }, Number(payload.stock || 0), "creacion", "creacion_producto", state.userProfile);
+        }
+        state.products = await listProducts();
+        await renderApp();
+        showToast("Producto guardado.");
+        const modal = document.getElementById("modalBackdrop");
+        if (modal) {
+          document.getElementById("pCodigo").value = nextProductCode();
+          document.getElementById("pNombre").value = "";
+          document.getElementById("pCategoria").value = "General";
+          document.getElementById("pPrecio").value = "0";
+          document.getElementById("pStock").value = "0";
+          document.getElementById("pMinimo").value = "0";
+          document.getElementById("pActivo").checked = true;
+          nameInput?.focus();
+        }
       }
-
-      const ref = await createProduct({ ...payload, stock: 0 });
-      if (payload.stock !== 0) {
-        await adjustStock({ ...payload, id: ref.id, stock: 0 }, Number(payload.stock || 0), "creacion", "creacion_producto", state.userProfile);
-      }
-      state.products = await listProducts();
-      showToast("Producto guardado");
-      await renderApp();
-      requestAnimationFrame(() => {
-        showProductModal();
-      });
-    } catch (err) {
-      console.error(err);
-      alert("No se pudo guardar el producto.");
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo guardar el producto. " + (error?.message || error));
+    } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = isEdit ? "Guardar cambios" : "Crear producto";
     }
   };
 
-  saveBtn.onclick = saveProductForm;
-  [codeInput, nameInput, document.getElementById("pCategoria"), document.getElementById("pPrecio"), document.getElementById("pStock"), document.getElementById("pMinimo")].forEach(el => {
-    el.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        saveProductForm();
-      }
-    });
+  saveBtn.onclick = saveHandler;
+  document.getElementById("modalBackdrop")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target?.tagName !== "TEXTAREA") {
+      e.preventDefault();
+      saveHandler();
+    }
   });
 }
 
@@ -904,22 +920,6 @@ function bindConfiguracion() {
       await renderApp();
     };
   }
-}
-
-function generateProductCode() {
-  return String(Date.now());
-}
-
-function showToast(message, type = "success") {
-  const toast = document.createElement("div");
-  toast.className = `app-toast ${type === "warn" ? "warn" : "success"}`;
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  requestAnimationFrame(() => toast.classList.add("show"));
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 250);
-  }, 1800);
 }
 
 function closeModal() {

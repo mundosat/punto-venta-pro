@@ -73,12 +73,6 @@ export async function updateProduct(id, payload) {
   });
 }
 
-
-
-export async function deleteProduct(id) {
-  await deleteDoc(doc(db, "productos", id));
-}
-
 export async function adjustStock(product, quantity, type, reference, user) {
   const previous = toNumber(product.stock);
   const next = previous + toNumber(quantity);
@@ -90,7 +84,7 @@ export async function adjustStock(product, quantity, type, reference, user) {
     productoId: product.id,
     codigo: product.codigo || "",
     nombre: product.nombre || "",
-    tipo,
+    tipo: type,
     cantidad: toNumber(quantity),
     stockAnterior: previous,
     stockNuevo: next,
@@ -99,6 +93,12 @@ export async function adjustStock(product, quantity, type, reference, user) {
     usuarioId: user?.id || "",
     usuarioNombre: user?.nombre || ""
   });
+}
+
+
+
+export async function deleteProduct(id) {
+  await deleteDoc(doc(db, "productos", id));
 }
 
 export async function listKardex() {

@@ -269,7 +269,7 @@ export function renderProductos({ products = [] }) {
       <td class="right">${Number(p.stock || 0)}</td>
       <td class="right">${Number(p.minimo || 0)}</td>
       <td>${p.activo !== false ? '<span class="badge badge-ok">Activo</span>' : '<span class="badge badge-danger">Inactivo</span>'}</td>
-      <td class="right actions-cell">
+      <td class="right">
         <button class="btn btn-secondary btn-sm" data-edit-product="${p.id}">Editar</button>
         <button class="btn btn-warning btn-sm" data-adjust-stock="${p.id}">Ajustar stock</button>
         <button class="btn btn-danger btn-sm" data-delete-product="${p.id}">Eliminar</button>
