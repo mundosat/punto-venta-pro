@@ -151,3 +151,6 @@ button:hover {
     box-shadow:0 4px 20px rgba(0,0,0,0.08);
     border-radius:12px;
 }
+
+.btn.danger{background:#dc2626;color:#fff}
+.btn.danger:hover{background:#991b1b}

@@ -259,7 +259,7 @@ export function renderProductos({ products = [] }) {
         <button class="btn btn-warning btn-sm" data-adjust-stock="${p.id}">Ajustar stock</button>
       </td>
     </tr>
-  `).join("");
+  ` + `<button class="btn danger" onclick="eliminarProducto(\'${id}\')">🗑️</button>`).join("");
 
   return `
     ${topbar("Productos", `

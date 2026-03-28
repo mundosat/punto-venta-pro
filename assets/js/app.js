@@ -786,3 +786,9 @@ async function exportarProductosExcel() {
     link.download = "productos.xls";
     link.click();
 }
+
+async function eliminarProducto(id){
+ if(!confirm("¿Eliminar producto?")) return;
+ await deleteDoc(doc(db,"productos",id));
+ alert("Eliminado");
+}
