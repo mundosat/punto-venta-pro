@@ -1,6 +1,7 @@
+
 import {
   db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
-  query, orderBy, limit, serverTimestamp
+  query, orderBy, limit, serverTimestamp, Timestamp
 } from "./firebase.js";
 import { state } from "./state.js";
 import { toNumber } from "./utils.js";
@@ -117,27 +118,71 @@ export async function createSale(payload) {
   });
 }
 
+async function ensureCajaDoc() {
+  const ref = doc(db, "caja", "caja");
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      abierta: false,
+      monto: 0,
+      montoInicial: 0,
+      fechaApertura: null,
+      fechaCierre: null,
+      usuarioId: "",
+      usuarioNombre: "",
+      actualizadoEn: serverTimestamp()
+    }, { merge: true });
+    return { id: "caja", abierta: false, monto: 0, montoInicial: 0 };
+  }
+  return { id: "caja", ...snap.data() };
+}
+
 export async function getOpenCashSession() {
-  const snap = await getDocs(collection(db, "cajas_sesiones"));
-  const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const open = sessions
-    .filter(s => s.estado === 'abierta')
-    .sort((a, b) => {
-      const at = a.fechaApertura?.toDate ? a.fechaApertura.toDate().getTime() : 0;
-      const bt = b.fechaApertura?.toDate ? b.fechaApertura.toDate().getTime() : 0;
-      return bt - at;
-    });
-  return open[0] || null;
+  const caja = await ensureCajaDoc();
+  if (caja.abierta === true) {
+    return {
+      id: "caja",
+      estado: "abierta",
+      montoInicial: toNumber(caja.montoInicial ?? caja.monto ?? 0),
+      fechaApertura: caja.fechaApertura || Timestamp.now(),
+      usuarioId: caja.usuarioId || "",
+      usuarioNombre: caja.usuarioNombre || ""
+    };
+  }
+  return null;
 }
 
 export async function openCashSession({ montoInicial, user }) {
-  const alreadyOpen = await getOpenCashSession();
-  if (alreadyOpen) return alreadyOpen;
-  const ref = await addDoc(collection(db, "cajas_sesiones"), {
+  const cajaRef = doc(db, "caja", "caja");
+  const current = await ensureCajaDoc();
+  if (current.abierta === true) {
+    return {
+      id: "caja",
+      estado: "abierta",
+      montoInicial: toNumber(current.montoInicial ?? current.monto ?? 0),
+      fechaApertura: current.fechaApertura || Timestamp.now(),
+      usuarioId: current.usuarioId || "",
+      usuarioNombre: current.usuarioNombre || ""
+    };
+  }
+
+  const monto = toNumber(montoInicial);
+  await setDoc(cajaRef, {
+    abierta: true,
+    monto,
+    montoInicial: monto,
+    fechaApertura: serverTimestamp(),
+    fechaCierre: null,
+    usuarioId: user?.id || "",
+    usuarioNombre: user?.nombre || "",
+    actualizadoEn: serverTimestamp()
+  }, { merge: true });
+
+  const histRef = await addDoc(collection(db, "cajas_sesiones"), {
     estado: "abierta",
     fechaApertura: serverTimestamp(),
     fechaCierre: null,
-    montoInicial: toNumber(montoInicial),
+    montoInicial: monto,
     totalVentas: 0,
     ingresos: 0,
     egresos: 0,
@@ -145,19 +190,37 @@ export async function openCashSession({ montoInicial, user }) {
     usuarioId: user?.id || "",
     usuarioNombre: user?.nombre || ""
   });
-  const snap = await getDoc(ref);
-  return { id: ref.id, ...snap.data() };
+
+  const snap = await getDoc(cajaRef);
+  return {
+    id: histRef.id,
+    estado: "abierta",
+    montoInicial: toNumber(snap.data()?.montoInicial ?? monto),
+    fechaApertura: snap.data()?.fechaApertura || Timestamp.now(),
+    usuarioId: user?.id || "",
+    usuarioNombre: user?.nombre || ""
+  };
 }
 
 export async function closeCashSession(session, summary) {
-  await updateDoc(doc(db, "cajas_sesiones", session.id), {
-    estado: "cerrada",
+  await setDoc(doc(db, "caja", "caja"), {
+    abierta: false,
+    monto: 0,
+    montoInicial: 0,
     fechaCierre: serverTimestamp(),
-    totalVentas: toNumber(summary.totalVentas),
-    ingresos: toNumber(summary.ingresos),
-    egresos: toNumber(summary.egresos),
-    montoFinal: toNumber(summary.montoFinal)
-  });
+    actualizadoEn: serverTimestamp()
+  }, { merge: true });
+
+  if (session?.id && session.id !== 'caja') {
+    await updateDoc(doc(db, "cajas_sesiones", session.id), {
+      estado: "cerrada",
+      fechaCierre: serverTimestamp(),
+      totalVentas: toNumber(summary.totalVentas),
+      ingresos: toNumber(summary.ingresos),
+      egresos: toNumber(summary.egresos),
+      montoFinal: toNumber(summary.montoFinal)
+    });
+  }
 }
 
 export async function listCashSessions() {
@@ -174,7 +237,7 @@ export async function listCashSessions() {
 
 export async function createCashMovement(payload) {
   return addDoc(collection(db, "movimientos_caja"), {
-    sesionId: payload.sesionId,
+    sesionId: payload.sesionId || 'caja',
     tipo: payload.tipo,
     concepto: payload.concepto || "",
     monto: toNumber(payload.monto),
@@ -188,7 +251,7 @@ export async function listCashMovements(sessionId) {
   const snap = await getDocs(collection(db, "movimientos_caja"));
   return snap.docs
     .map(d => ({ id: d.id, ...d.data() }))
-    .filter(m => m.sesionId === sessionId)
+    .filter(m => !sessionId || m.sesionId === sessionId || m.sesionId === 'caja')
     .sort((a, b) => {
       const at = a.fecha?.toDate ? a.fecha.toDate().getTime() : 0;
       const bt = b.fecha?.toDate ? b.fecha.toDate().getTime() : 0;

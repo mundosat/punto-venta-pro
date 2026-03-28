@@ -30,3 +30,7 @@ Esta versión deja el comprobante y la base comercial listos, pero **no** implem
 - movimientos_caja
 - ventas
 - kardex
+
+
+## Corrección de caja
+Esta versión usa el documento `caja/caja` para abrir y cerrar caja, además de guardar historial en `cajas_sesiones` automáticamente.

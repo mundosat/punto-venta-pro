@@ -33,6 +33,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /caja/{docId} {
+      allow read, create, update: if isCashier();
+      allow delete: if isAdmin();
+    }
+
     match /productos/{docId} {
       allow read: if isCashier();
       allow create, update, delete: if isAdmin();

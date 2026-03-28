@@ -68,10 +68,15 @@ function bindLogin(message = "") {
 }
 
 window.addEventListener("hashchange", () => renderApp());
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   if (!window.location.hash) window.location.hash = "#inicio";
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const reg of regs) {
+        await reg.unregister();
+      }
+    } catch {}
   }
 });
 
@@ -207,10 +212,12 @@ function showOpenCashModal() {
       const montoInicial = toNumber(document.getElementById("cashOpenAmount").value);
       state.activeCashSession = await openCashSession({ montoInicial, user: state.userProfile });
       closeModal();
+      alert("Caja abierta correctamente.");
       await renderApp();
     } catch (error) {
       console.error(error);
-      alert("No se pudo abrir la caja. Revisa las reglas de Firestore y que tu usuario tenga rol admin o cajero.");
+      const message = error?.message || String(error);
+      alert("No se pudo abrir la caja. Detalle: " + message);
     }
   };
 }
