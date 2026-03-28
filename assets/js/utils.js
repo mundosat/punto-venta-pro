@@ -112,33 +112,27 @@ function splitCsvLine(line) {
 }
 
 
-export function showToast(message, type = "success") {
-  const toast = document.createElement("div");
-  toast.textContent = message;
-  toast.className = `app-toast app-toast-${type}`;
-  Object.assign(toast.style, {
-    position: "fixed",
-    right: "20px",
-    bottom: "20px",
-    zIndex: "9999",
-    padding: "12px 18px",
-    borderRadius: "10px",
-    fontWeight: "700",
-    color: "#fff",
-    background: type === "error" ? "#dc2626" : (type === "warning" ? "#d97706" : "#16a34a"),
-    boxShadow: "0 10px 25px rgba(0,0,0,.22)",
-    opacity: "0",
-    transform: "translateY(8px)",
-    transition: "all .18s ease"
+export function mostrarToast(msg){
+  const t=document.createElement("div");
+  t.innerText=msg;
+  t.style.position="fixed";
+  t.style.bottom="20px";
+  t.style.right="20px";
+  t.style.background="#22c55e";
+  t.style.color="#fff";
+  t.style.padding="10px 18px";
+  t.style.borderRadius="6px";
+  t.style.zIndex="9999";
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),1500);
+}
+
+export function limpiarRapido(){
+  const ids=["pNombre","pPrecio","pStock","pMinimo"];
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value="";
   });
-  document.body.appendChild(toast);
-  requestAnimationFrame(() => {
-    toast.style.opacity = "1";
-    toast.style.transform = "translateY(0)";
-  });
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateY(8px)";
-    setTimeout(() => toast.remove(), 180);
-  }, 1600);
+  const nombre=document.getElementById("pNombre");
+  if(nombre) nombre.focus();
 }
