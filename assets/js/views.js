@@ -174,7 +174,7 @@ export function renderVentas({ products = [], cart = [] }) {
     <div class="cart-item">
       <div>
         <div><strong>${escapeHtml(item.nombre)}</strong></div>
-        <div class="product-meta">${escapeHtml(item.codigo || "-")}</div>
+        <div class="product-meta">${escapeHtml(item.codigo || (item.manual ? "Venta rápida" : "-"))}</div>
       </div>
       <div class="qty-box">
         <button class="qty-btn" data-cart-dec="${item.id}">-</button>
@@ -191,23 +191,14 @@ export function renderVentas({ products = [], cart = [] }) {
 
   return `
     ${topbar("Ventas", `
-      <button class="btn btn-secondary" id="btnLimpiar
-      <div class="card">
-        <h3>⚡ Venta rápida</h3>
-        <input type="text" id="vr_nombre" placeholder="Nombre producto">
-        <input type="number" id="vr_precio" placeholder="Precio">
-        <input type="number" id="vr_cantidad" placeholder="Cantidad" value="1">
-        <button class="btn btn-primary" id="btnVentaRapida">➕ Agregar</button>
-      </div>
-
-      Carrito">Vaciar carrito</button>
+      <button class="btn btn-secondary" id="btnLimpiarCarrito">Vaciar carrito</button>
     `)}
 
     <div class="pos-layout">
       <section class="card">
         <div class="grid grid-2">
           <div class="form-group">
-            <label>Buscar producto</label>
+            <label>Buscar producto registrado</label>
             <input class="input" id="buscarProducto" placeholder="Nombre o código" />
           </div>
           <div class="form-group">
@@ -216,8 +207,19 @@ export function renderVentas({ products = [], cart = [] }) {
           </div>
         </div>
 
+        <div class="quick-sale-card mt16">
+          <div class="quick-sale-title">⚡ Venta rápida</div>
+          <div class="quick-sale-grid">
+            <input class="input" id="ventaRapidaNombre" placeholder="Producto no registrado">
+            <input class="input" id="ventaRapidaPrecio" type="number" step="0.01" placeholder="Precio">
+            <input class="input" id="ventaRapidaCantidad" type="number" step="1" min="1" value="1" placeholder="Cantidad">
+            <button class="btn btn-primary" id="btnAgregarVentaRapida">Agregar</button>
+          </div>
+          <div class="quick-sale-help">Úsalo para productos o servicios no registrados. Se suma al ticket automáticamente.</div>
+        </div>
+
         <div class="product-grid mt16" id="productGrid">
-          ${cards || '<div class="alert alert-info">No hay productos todavía.</div>'}
+          ${cards || '<div class="alert alert-info">No hay productos registrados todavía.</div>'}
         </div>
       </section>
 

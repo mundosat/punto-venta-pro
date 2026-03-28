@@ -293,6 +293,22 @@ function bindVentas() {
       });
     };
   }
+
+  const quickAdd = () => addQuickSaleItem();
+  const btnQuick = document.getElementById("btnAgregarVentaRapida");
+  if (btnQuick) btnQuick.onclick = quickAdd;
+
+  ["ventaRapidaNombre", "ventaRapidaPrecio", "ventaRapidaCantidad"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          quickAdd();
+        }
+      });
+    }
+  });
 }
 
 function addToCart(product) {
@@ -309,20 +325,66 @@ function addToCart(product) {
       nombre: product.nombre || "",
       cantidad: 1,
       precio: Number(product.precio || 0),
-      total: Number(product.precio || 0)
+      total: Number(product.precio || 0),
+      manual: false
     });
   }
 }
 
+function addQuickSaleItem() {
+  const nombreInput = document.getElementById("ventaRapidaNombre");
+  const precioInput = document.getElementById("ventaRapidaPrecio");
+  const cantidadInput = document.getElementById("ventaRapidaCantidad");
+
+  const nombre = nombreInput?.value.trim() || "";
+  const precio = toNumber(precioInput?.value);
+  const cantidad = Math.max(1, parseInt(cantidadInput?.value || "1", 10) || 1);
+
+  if (!nombre) return alert("Escribe el nombre del producto o servicio.");
+  if (precio <= 0) return alert("Escribe un precio válido.");
+
+  const found = state.cart.find(i => i.manual === true && i.nombre.toLowerCase() === nombre.toLowerCase() && Number(i.precio) === Number(precio));
+  if (found) {
+    found.cantidad += cantidad;
+    found.total = found.cantidad * found.precio;
+  } else {
+    const uniqueId = `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    state.cart.push({
+      id: uniqueId,
+      productoId: null,
+      codigo: "",
+      nombre,
+      cantidad,
+      precio,
+      total: cantidad * precio,
+      manual: true
+    });
+  }
+
+  if (nombreInput) nombreInput.value = "";
+  if (precioInput) precioInput.value = "";
+  if (cantidadInput) cantidadInput.value = "1";
+  renderApp();
+}
+
 function changeQty(id, delta) {
   const item = state.cart.find(i => i.id === id);
-  const product = state.products.find(p => p.id === id);
-  if (!item || !product) return;
+  if (!item) return;
+
   const next = item.cantidad + delta;
   if (next <= 0) {
     state.cart = state.cart.filter(i => i.id !== id);
     return;
   }
+
+  if (item.manual) {
+    item.cantidad = next;
+    item.total = item.cantidad * item.precio;
+    return;
+  }
+
+  const product = state.products.find(p => p.id === id);
+  if (!product) return;
   if (next > Number(product.stock || 0)) return alert("Stock insuficiente.");
   item.cantidad = next;
   item.total = item.cantidad * item.precio;
@@ -746,36 +808,3 @@ function fileToDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
-
-
-function agregarVentaRapida() {
-  const n = document.getElementById("vr_nombre")?.value;
-  const p = parseFloat(document.getElementById("vr_precio")?.value);
-  const c = parseInt(document.getElementById("vr_cantidad")?.value || "1");
-
-  if (!n || isNaN(p)) {
-    alert("Completa nombre y precio");
-    return;
-  }
-
-  const item = {
-    id: "manual_" + Date.now(),
-    nombre: n,
-    precio: p,
-    cantidad: c,
-    subtotal: p * c
-  };
-
-  if (!state.cart) state.cart = [];
-  state.cart.push(item);
-  renderApp();
-
-  document.getElementById("vr_nombre").value = "";
-  document.getElementById("vr_precio").value = "";
-  document.getElementById("vr_cantidad").value = 1;
-}
-
-
-
-  const btnVR = document.getElementById("btnVentaRapida");
-  if (btnVR) btnVR.onclick = agregarVentaRapida;

@@ -134,8 +134,31 @@ img{max-width:100%}
   .grid-4,.grid-3,.grid-2,.pos-layout{grid-template-columns:1fr}
 }
 
-#vr_nombre,#vr_precio,#vr_cantidad{
-  width:100%;
-  margin:6px 0;
-  padding:8px;
+
+.quick-sale-card{
+  margin-top:16px;
+  padding:16px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px;
+  background:rgba(255,255,255,.03);
+}
+.quick-sale-title{
+  font-weight:700;
+  margin-bottom:10px;
+}
+.quick-sale-grid{
+  display:grid;
+  grid-template-columns: 2fr 1fr 110px auto;
+  gap:12px;
+  align-items:end;
+}
+.quick-sale-help{
+  margin-top:10px;
+  font-size:12px;
+  opacity:.8;
+}
+@media (max-width: 980px){
+  .quick-sale-grid{
+    grid-template-columns:1fr;
+  }
 }
