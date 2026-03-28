@@ -253,7 +253,7 @@ function bindVentas() {
   document.querySelectorAll("[data-cart-remove]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-cart-remove");
-      state.cart = state.cart.filter(i => String(i.id) !== String(id));
+      state.cart = state.cart.filter(i => i.id !== id);
       renderApp();
     };
   });

@@ -207,9 +207,14 @@ export function renderVentas({ products = [], cart = [] }) {
           </div>
         </div>
 
-        <div class="product-grid mt16" id="productGrid">
-          ${cards || '<div class="alert alert-info">No hay productos todavía.</div>'}
-        </div>
+        <div class="quick-sale-card mt16">
+  <div style="display:flex;gap:10px;align-items:center">
+    <input class="input" id="ventaRapidaNombre" placeholder="Producto rápido">
+    <input class="input" id="ventaRapidaPrecio" type="number" placeholder="Precio">
+    <input class="input" id="ventaRapidaCantidad" type="number" value="1">
+    <button class="btn btn-primary" id="btnAgregarVentaRapida">Agregar</button>
+  </div>
+</div>
       </section>
 
       <section class="card">
