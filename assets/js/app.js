@@ -4,9 +4,8 @@ import {
 import { state } from "./state.js";
 import {
   getConfig, getUserProfile, listProducts, createProduct, updateProduct, adjustStock, listKardex,
-  listUsers, saveUser, listSales, getNextSaleNumber, createSale,
-  getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig,
-  listClients, createClient
+  listUsers, saveUser, listSales, getNextSaleNumber, createSale, listClients, createClient,
+  getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig
 } from "./api.js";
 import { renderLogin, renderLayout, modalShell } from "./ui.js";
 import {
@@ -225,21 +224,6 @@ function showOpenCashModal() {
 }
 
 function bindVentas() {
-  const clientSelect = document.getElementById("clienteVenta");
-  if (clientSelect) {
-    clientSelect.onchange = () => {
-      state.selectedClientId = clientSelect.value || "final";
-    };
-  }
-
-  const btnRegistrarCliente = document.getElementById("btnRegistrarCliente");
-  if (btnRegistrarCliente) btnRegistrarCliente.onclick = () => showClientModal();
-
-  const quickSaleBtn = document.getElementById("btnAgregarVentaRapida");
-  if (quickSaleBtn) quickSaleBtn.onclick = () => addQuickSaleToCart();
-
-  setupCalculator();
-
   document.querySelectorAll("[data-add-product]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-add-product");
@@ -300,120 +284,108 @@ function bindVentas() {
   const btnNoPrint = document.getElementById("btnCobrarSinImprimir");
   if (btnNoPrint) btnNoPrint.onclick = () => chargeSale(false);
 
-  const search = document.getElementById("buscarProducto");
-  if (search) {
-    search.oninput = () => {
-      const q = search.value.trim().toLowerCase();
-      document.querySelectorAll("[data-add-product]").forEach(card => {
-        const txt = card.textContent.toLowerCase();
-        card.classList.toggle("hidden", !txt.includes(q));
-      });
+  const clientSelect = document.getElementById("clienteVenta");
+  if (clientSelect) {
+    clientSelect.value = state.selectedClientId || "final";
+    clientSelect.onchange = () => {
+      state.selectedClientId = clientSelect.value || "final";
     };
   }
 
-  ["ventaRapidaNombre", "ventaRapidaPrecio", "ventaRapidaCantidad"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.onkeydown = (e) => {
-      if (e.key === "Enter") addQuickSaleToCart();
+  const registerClientBtn = document.getElementById("btnRegistrarCliente");
+  if (registerClientBtn) registerClientBtn.onclick = showClientModal;
+
+  const quickBtn = document.getElementById("btnAgregarVentaRapida");
+  if (quickBtn) {
+    quickBtn.onclick = () => {
+      const nombre = document.getElementById("ventaRapidaNombre")?.value.trim() || "Venta rápida";
+      const precio = toNumber(document.getElementById("ventaRapidaPrecio")?.value);
+      const cantidad = Math.max(1, Math.trunc(toNumber(document.getElementById("ventaRapidaCantidad")?.value || 1)));
+      if (precio <= 0) return alert("Ingresa un precio válido.");
+      const itemId = `rapida_${Date.now()}`;
+      state.cart.push({
+        id: itemId,
+        productoId: null,
+        codigo: "VR",
+        nombre,
+        cantidad,
+        precio,
+        total: precio * cantidad
+      });
+      renderApp();
     };
-  });
-}
+  }
 
-
-
-function addQuickSaleToCart() {
-  const nombre = document.getElementById("ventaRapidaNombre")?.value.trim() || "Venta rápida";
-  const precio = toNumber(document.getElementById("ventaRapidaPrecio")?.value);
-  const cantidad = Math.max(1, Math.floor(toNumber(document.getElementById("ventaRapidaCantidad")?.value) || 1));
-  if (precio <= 0) return alert("Ingresa un precio válido.");
-  const uniqueId = `quick_${Date.now()}`;
-  state.cart.push({
-    id: uniqueId,
-    productoId: null,
-    codigo: "VR",
-    nombre,
-    cantidad,
-    precio,
-    total: precio * cantidad,
-    esVentaRapida: true
-  });
-  const nombreInput = document.getElementById("ventaRapidaNombre");
-  const precioInput = document.getElementById("ventaRapidaPrecio");
-  const cantidadInput = document.getElementById("ventaRapidaCantidad");
-  if (nombreInput) nombreInput.value = "";
-  if (precioInput) precioInput.value = "";
-  if (cantidadInput) cantidadInput.value = 1;
-  renderApp();
-}
-
-function setupCalculator() {
-  const panel = document.getElementById("calcPanel");
-  const toggle = document.getElementById("btnToggleCalc");
-  const display = document.getElementById("calcDisplay");
-  if (!panel || !toggle || !display) return;
-  let expr = "";
-  const refresh = () => display.textContent = expr || "0";
-  toggle.onclick = () => panel.classList.toggle("hidden");
-  document.querySelectorAll(".calc-btn[data-calc-value]").forEach(btn => {
-    btn.onclick = () => { expr += btn.getAttribute("data-calc-value"); refresh(); };
-  });
-  document.querySelectorAll(".calc-btn[data-calc-action]").forEach(btn => {
-    btn.onclick = () => {
-      const action = btn.getAttribute("data-calc-action");
-      if (action === "clear") expr = "";
-      if (action === "back") expr = expr.slice(0, -1);
-      if (action === "equals") {
-        try {
-          if (!expr.trim()) return;
-          expr = String(Function(`"use strict"; return (${expr})`)());
-        } catch {
-          alert("Operación no válida.");
+  const search = document.getElementById("buscarProducto");
+  if (search) {
+    const applySearch = () => {
+      const q = search.value.trim().toLowerCase();
+      const cards = [...document.querySelectorAll("[data-add-product]")];
+      let firstVisible = null;
+      cards.forEach(card => {
+        const name = (card.getAttribute("data-product-name") || "").toLowerCase();
+        const code = (card.getAttribute("data-product-code") || "").toLowerCase();
+        const visible = !q || name.includes(q) || code.includes(q) || `${name} ${code}`.includes(q);
+        card.classList.toggle("hidden", !visible);
+        if (visible && !firstVisible) firstVisible = card;
+      });
+      return firstVisible;
+    };
+    search.oninput = applySearch;
+    search.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        const firstVisible = applySearch();
+        if (firstVisible) {
+          e.preventDefault();
+          firstVisible.click();
+          search.select();
         }
       }
-      refresh();
     };
-  });
-  const btnUse = document.getElementById("btnCalcToQuickSale");
-  if (btnUse) btnUse.onclick = () => {
-    const precioInput = document.getElementById("ventaRapidaPrecio");
-    if (precioInput) precioInput.value = expr || "";
-    panel.classList.add("hidden");
-  };
-  refresh();
+    applySearch();
+  }
 }
 
-function showClientModal() {
+async function showClientModal() {
   document.body.insertAdjacentHTML("beforeend", modalShell(`
     <h3 class="m0">Registrar cliente</h3>
     <div class="grid grid-2 mt16">
-      <div class="form-group"><label>Nombre</label><input class="input" id="cNombre" placeholder="Nombre completo" /></div>
-      <div class="form-group"><label>Cédula / RUC</label><input class="input" id="cIdentificacion" placeholder="Identificación" /></div>
+      <div class="form-group">
+        <label>Nombre</label>
+        <input class="input" id="nuevoClienteNombre" placeholder="Nombre del cliente" />
+      </div>
+      <div class="form-group">
+        <label>Cédula / RUC</label>
+        <input class="input" id="nuevoClienteIdentificacion" placeholder="Cédula o RUC" />
+      </div>
     </div>
     <div class="grid grid-2">
-      <div class="form-group"><label>Teléfono</label><input class="input" id="cTelefono" placeholder="0999999999" /></div>
-      <div class="form-group"><label>Correo</label><input class="input" id="cEmail" placeholder="cliente@correo.com" /></div>
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input class="input" id="nuevoClienteTelefono" placeholder="Teléfono" />
+      </div>
+      <div class="form-group">
+        <label>Dirección</label>
+        <input class="input" id="nuevoClienteDireccion" placeholder="Dirección" />
+      </div>
     </div>
-    <div class="form-group"><label>Dirección</label><input class="input" id="cDireccion" placeholder="Dirección" /></div>
     <div class="toolbar mt16">
       <button class="btn btn-primary" id="btnGuardarClienteModal">Guardar cliente</button>
       <button class="btn btn-secondary" id="cancelModal">Cancelar</button>
     </div>
   `));
+
   document.getElementById("cancelModal").onclick = closeModal;
   document.getElementById("btnGuardarClienteModal").onclick = async () => {
+    const nombre = document.getElementById("nuevoClienteNombre")?.value.trim();
+    const identificacion = document.getElementById("nuevoClienteIdentificacion")?.value.trim() || "";
+    const telefono = document.getElementById("nuevoClienteTelefono")?.value.trim() || "";
+    const direccion = document.getElementById("nuevoClienteDireccion")?.value.trim() || "";
+    if (!nombre) return alert("Ingresa el nombre del cliente.");
     try {
-      const nombre = document.getElementById("cNombre").value.trim();
-      if (!nombre) return alert("Ingresa el nombre del cliente.");
-      await createClient({
-        nombre,
-        identificacion: document.getElementById("cIdentificacion").value.trim(),
-        telefono: document.getElementById("cTelefono").value.trim(),
-        email: document.getElementById("cEmail").value.trim(),
-        direccion: document.getElementById("cDireccion").value.trim()
-      });
-      state.clients = await listClients().catch(() => []);
-      const found = state.clients.find(c => c.nombre === nombre);
-      if (found) state.selectedClientId = found.id;
+      const ref = await createClient({ nombre, identificacion, telefono, direccion });
+      state.clients = await listClients().catch(() => state.clients);
+      state.selectedClientId = ref.id;
       closeModal();
       await renderApp();
     } catch (err) {
@@ -451,7 +423,7 @@ function changeQty(id, delta) {
     state.cart = state.cart.filter(i => i.id !== id);
     return;
   }
-  if (product && next > Number(product.stock || 0)) return alert("Stock insuficiente.");
+  if (next > Number(product.stock || 0)) return alert("Stock insuficiente.");
   item.cantidad = next;
   item.total = item.cantidad * item.precio;
 }
@@ -472,10 +444,10 @@ async function chargeSale(imprimir) {
   try {
     if (!state.activeCashSession) return alert("Debes abrir la caja antes de cobrar.");
     if (!state.cart.length) return alert("Agrega productos al carrito.");
-    const clienteSeleccionado = state.selectedClientId === "final"
-      ? null
-      : state.clients.find(c => c.id === state.selectedClientId) || null;
-    const cliente = clienteSeleccionado?.nombre || "Consumidor Final";
+    const clientSelect = document.getElementById("clienteVenta");
+    const selectedClientId = clientSelect?.value || state.selectedClientId || "final";
+    const selectedClient = selectedClientId === "final" ? null : state.clients.find(c => c.id === selectedClientId);
+    const cliente = selectedClient?.nombre || "Consumidor Final";
     const pagadoCon = toNumber(document.getElementById("pagadoCon")?.value);
     const subtotal = cartSubtotal();
     const impuesto = cartTax();
@@ -485,7 +457,7 @@ async function chargeSale(imprimir) {
     const numero = await getNextSaleNumber();
 
     for (const item of state.cart) {
-      if (item.esVentaRapida) continue;
+      if (!item.productoId) continue;
       const product = state.products.find(p => p.id === item.productoId);
       if (!product) throw new Error("Producto no encontrado");
       if (Number(product.stock || 0) < Number(item.cantidad || 0)) {
@@ -498,11 +470,10 @@ async function chargeSale(imprimir) {
       usuarioId: state.userProfile.id,
       usuarioNombre: state.userProfile.nombre,
       cliente,
-      clienteId: clienteSeleccionado?.id || "final",
-      clienteIdentificacion: clienteSeleccionado?.identificacion || "",
-      clienteTelefono: clienteSeleccionado?.telefono || "",
-      clienteDireccion: clienteSeleccionado?.direccion || "",
-      clienteEmail: clienteSeleccionado?.email || "",
+      clienteId: selectedClient?.id || "final",
+      clienteIdentificacion: selectedClient?.identificacion || "",
+      clienteTelefono: selectedClient?.telefono || "",
+      clienteDireccion: selectedClient?.direccion || "",
       subtotal,
       impuesto,
       total,
@@ -522,7 +493,7 @@ async function chargeSale(imprimir) {
     const ref = await createSale(salePayload);
 
     for (const item of state.cart) {
-      if (item.esVentaRapida) continue;
+      if (!item.productoId) continue;
       const product = state.products.find(p => p.id === item.productoId);
       await adjustStock(product, -Number(item.cantidad || 0), "venta", `venta_${String(numero).padStart(6, "0")}`, state.userProfile);
       product.stock = Number(product.stock || 0) - Number(item.cantidad || 0);

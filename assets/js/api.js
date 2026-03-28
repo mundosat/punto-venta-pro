@@ -46,26 +46,6 @@ export async function listProducts() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-
-
-export async function listClients() {
-  const snap = await getDocs(query(collection(db, "clientes"), orderBy("nombre")));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-}
-
-export async function createClient(payload) {
-  return addDoc(collection(db, "clientes"), {
-    nombre: payload.nombre || "",
-    identificacion: payload.identificacion || "",
-    telefono: payload.telefono || "",
-    direccion: payload.direccion || "",
-    email: payload.email || "",
-    activo: payload.activo !== false,
-    creadoEn: serverTimestamp(),
-    actualizadoEn: serverTimestamp()
-  });
-}
-
 export async function createProduct(payload) {
   return addDoc(collection(db, "productos"), {
     codigo: payload.codigo || "",
@@ -135,6 +115,23 @@ export async function createSale(payload) {
   return addDoc(collection(db, "ventas"), {
     ...payload,
     fecha: serverTimestamp()
+  });
+}
+
+
+export async function listClients() {
+  const snap = await getDocs(query(collection(db, "clientes"), orderBy("nombre")));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function createClient(payload) {
+  return addDoc(collection(db, "clientes"), {
+    nombre: String(payload.nombre || "").trim(),
+    identificacion: String(payload.identificacion || "").trim(),
+    telefono: String(payload.telefono || "").trim(),
+    direccion: String(payload.direccion || "").trim(),
+    creadoEn: serverTimestamp(),
+    actualizadoEn: serverTimestamp()
   });
 }
 

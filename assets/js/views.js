@@ -158,18 +158,15 @@ export function renderVentas({ products = [], cart = [], clients = [], selectedC
   const cards = products
     .filter(p => p.activo !== false)
     .map(p => `
-      <button class="product-card" data-add-product="${p.id}">
-        <div class="product-name">${escapeHtml(p.nombre)}</div>
-        <div class="product-meta">Código: ${escapeHtml(p.codigo || "-")}</div>
-        <div class="product-meta">Stock: ${Number(p.stock || 0)}</div>
-        <div class="mt12"><strong>${currency(p.precio, state.config.moneda)}</strong></div>
+      <button class="product-chip" data-add-product="${p.id}" data-product-name="${escapeHtml(p.nombre)}" data-product-code="${escapeHtml(p.codigo || "")}">
+        <div class="product-chip-name">${escapeHtml(p.nombre)}</div>
+        <div class="product-chip-meta">${escapeHtml(p.codigo || "Sin código")}</div>
+        <div class="product-chip-price">${currency(p.precio, state.config.moneda)}</div>
       </button>
     `).join("");
 
-  const clientOptions = [`<option value="final" ${selectedClientId === "final" ? "selected" : ""}>Consumidor Final</option>`]
-    .concat(clients
-      .filter(c => c.activo !== false)
-      .map(c => `<option value="${c.id}" ${selectedClientId === c.id ? "selected" : ""}>${escapeHtml(c.nombre || "Cliente sin nombre")}${c.identificacion ? ` · ${escapeHtml(c.identificacion)}` : ""}</option>`))
+  const clientOptions = [`<option value="final">Consumidor Final</option>`]
+    .concat(clients.map(c => `<option value="${c.id}" ${selectedClientId === c.id ? 'selected' : ''}>${escapeHtml(c.nombre || 'Cliente')}</option>`))
     .join("");
 
   const subtotal = cart.reduce((a, i) => a + Number(i.total || 0), 0);
@@ -205,36 +202,28 @@ export function renderVentas({ products = [], cart = [], clients = [], selectedC
         <div class="grid grid-2">
           <div class="form-group">
             <label>Buscar producto</label>
-            <input class="input" id="buscarProducto" placeholder="Nombre o código" />
+            <input class="input" id="buscarProducto" placeholder="Nombre, código o escaneo" autocomplete="off" />
           </div>
           <div class="form-group">
             <label>Cliente</label>
             <div class="client-row">
-              <select class="select" id="clienteVenta">
-                ${clientOptions}
-              </select>
-              <button class="btn btn-primary btn-icon" id="btnRegistrarCliente" title="Registrar cliente">＋</button>
+              <select class="select" id="clienteVenta">${clientOptions}</select>
+              <button class="btn btn-primary" type="button" id="btnRegistrarCliente">Registrar cliente</button>
             </div>
           </div>
         </div>
 
         <div class="quick-sale-card mt16">
-          <div class="quick-sale-header">
-            <div>
-              <div class="product-name">Venta rápida</div>
-              <div class="product-meta">Para montos rápidos sin crear producto</div>
-            </div>
-          </div>
-          <div class="quick-sale-row mt12">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <input class="input" id="ventaRapidaNombre" placeholder="Producto rápido">
-            <input class="input" id="ventaRapidaPrecio" type="number" step="0.01" placeholder="Precio">
-            <input class="input" id="ventaRapidaCantidad" type="number" min="1" step="1" value="1">
+            <input class="input" id="ventaRapidaPrecio" type="number" placeholder="Precio">
+            <input class="input" id="ventaRapidaCantidad" type="number" value="1" min="1">
             <button class="btn btn-primary" id="btnAgregarVentaRapida">Agregar</button>
           </div>
         </div>
 
-        <div class="product-grid mt16">
-          ${cards || '<div class="alert alert-info">No hay productos registrados.</div>'}
+        <div class="product-grid mt16" id="listaProductos">
+          ${cards || '<div class="alert alert-info">No hay productos activos.</div>'}
         </div>
       </section>
 
@@ -267,32 +256,6 @@ export function renderVentas({ products = [], cart = [], clients = [], selectedC
         </div>
       </section>
     </div>
-
-    <button class="calc-fab" id="btnToggleCalc" title="Calculadora">🧮</button>
-    <section class="calc-panel hidden" id="calcPanel">
-      <div class="calc-display" id="calcDisplay">0</div>
-      <div class="calc-grid">
-        <button class="btn btn-secondary calc-btn" data-calc-action="clear">C</button>
-        <button class="btn btn-secondary calc-btn" data-calc-action="back">⌫</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="/">÷</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="*">×</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="7">7</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="8">8</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="9">9</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="-">-</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="4">4</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="5">5</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="6">6</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="+">+</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="1">1</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="2">2</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value="3">3</button>
-        <button class="btn btn-primary calc-btn" data-calc-action="equals">=</button>
-        <button class="btn btn-secondary calc-btn calc-span-2" data-calc-value="0">0</button>
-        <button class="btn btn-secondary calc-btn" data-calc-value=".">.</button>
-        <button class="btn btn-primary calc-btn" id="btnCalcToQuickSale">Usar</button>
-      </div>
-    </section>
   `;
 }
 
