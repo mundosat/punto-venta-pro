@@ -110,3 +110,35 @@ function splitCsvLine(line) {
   result.push(current);
   return result;
 }
+
+
+export function showToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.textContent = message;
+  toast.className = `app-toast app-toast-${type}`;
+  Object.assign(toast.style, {
+    position: "fixed",
+    right: "20px",
+    bottom: "20px",
+    zIndex: "9999",
+    padding: "12px 18px",
+    borderRadius: "10px",
+    fontWeight: "700",
+    color: "#fff",
+    background: type === "error" ? "#dc2626" : (type === "warning" ? "#d97706" : "#16a34a"),
+    boxShadow: "0 10px 25px rgba(0,0,0,.22)",
+    opacity: "0",
+    transform: "translateY(8px)",
+    transition: "all .18s ease"
+  });
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.style.opacity = "1";
+    toast.style.transform = "translateY(0)";
+  });
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(8px)";
+    setTimeout(() => toast.remove(), 180);
+  }, 1600);
+}

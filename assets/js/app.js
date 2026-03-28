@@ -13,7 +13,7 @@ import {
   renderUsuarios, renderReportes, renderConfiguracion
 } from "./views.js";
 import { printTicket } from "./ticket.js";
-import { toNumber, formatDateTime, escapeHtml, csvFromRows, downloadTextFile, readFileAsText, parseCsv } from "./utils.js";
+import { toNumber, formatDateTime, escapeHtml, csvFromRows, downloadTextFile, readFileAsText, parseCsv, showToast } from "./utils.js";
 
 const app = document.getElementById("app");
 
@@ -556,7 +556,7 @@ function showProductModal(product = null) {
   document.body.insertAdjacentHTML("beforeend", modalShell(`
     <h3 class="m0">${isEdit ? "Editar producto" : "Nuevo producto"}</h3>
     <div class="grid grid-2 mt16">
-      <div class="form-group"><label>Código</label><input class="input" id="pCodigo" value="${escapeHtml(product?.codigo || "")}" /></div>
+      <div class="form-group"><label>Código</label><input class="input" id="pCodigo" value="${escapeHtml(product?.codigo || generateQuickProductCode())}" /></div>
       <div class="form-group"><label>Nombre</label><input class="input" id="pNombre" value="${escapeHtml(product?.nombre || "")}" /></div>
     </div>
     <div class="grid grid-2">
@@ -576,9 +576,14 @@ function showProductModal(product = null) {
     </div>
   `));
   document.getElementById("cancelModal").onclick = closeModal;
-  document.getElementById("saveProductModal").onclick = async () => {
+  const nameInput = document.getElementById("pNombre");
+  const saveBtn = document.getElementById("saveProductModal");
+  nameInput?.focus();
+  if (!isEdit) nameInput?.select?.();
+
+  const submitProduct = async () => {
     const payload = {
-      codigo: document.getElementById("pCodigo").value.trim(),
+      codigo: document.getElementById("pCodigo").value.trim() || generateQuickProductCode(),
       nombre: document.getElementById("pNombre").value.trim(),
       categoria: document.getElementById("pCategoria").value.trim() || "General",
       precio: toNumber(document.getElementById("pPrecio").value),
@@ -586,24 +591,57 @@ function showProductModal(product = null) {
       minimo: toNumber(document.getElementById("pMinimo").value),
       activo: document.getElementById("pActivo").checked
     };
-    if (!payload.nombre) return alert("Debes escribir el nombre.");
-    if (isEdit) {
-      const previousStock = Number(product.stock || 0);
-      await updateProduct(product.id, payload);
-      const diff = Number(payload.stock || 0) - previousStock;
-      if (diff !== 0) {
-        await adjustStock({ ...product, stock: previousStock }, diff, "ajuste", "ajuste_manual", state.userProfile);
+    if (!payload.nombre) {
+      showToast("Debes escribir el nombre.", "warning");
+      document.getElementById("pNombre")?.focus();
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = isEdit ? "Guardando..." : "Creando...";
+    try {
+      if (isEdit) {
+        const previousStock = Number(product.stock || 0);
+        await updateProduct(product.id, payload);
+        const diff = Number(payload.stock || 0) - previousStock;
+        if (diff !== 0) {
+          await adjustStock({ ...product, stock: previousStock }, diff, "ajuste", "ajuste_manual", state.userProfile);
+        }
+        state.products = await listProducts();
+        showToast("Producto actualizado.");
+        closeModal();
+        await renderApp();
+        return;
       }
-    } else {
+
       const ref = await createProduct(payload);
       if (payload.stock !== 0) {
         await adjustStock({ ...payload, id: ref.id, stock: 0 }, Number(payload.stock || 0), "creacion", "creacion_producto", state.userProfile);
       }
+      state.products = await listProducts();
+      showToast("Producto guardado.");
+      resetQuickProductForm();
+      await renderApp();
+      setTimeout(() => document.getElementById("pNombre")?.focus(), 0);
+    } catch (err) {
+      console.error(err);
+      showToast("No se pudo guardar el producto.", "error");
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = isEdit ? "Guardar cambios" : "Crear producto";
     }
-    state.products = await listProducts();
-    closeModal();
-    await renderApp();
   };
+
+  saveBtn.onclick = submitProduct;
+  const modal = document.getElementById("modalBackdrop");
+  modal?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      const tag = String(e.target?.tagName || "").toLowerCase();
+      if (tag === "textarea") return;
+      e.preventDefault();
+      submitProduct();
+    }
+  });
 }
 
 function showAdjustStockModal(product) {
@@ -845,6 +883,28 @@ function bindConfiguracion() {
 
 function closeModal() {
   document.getElementById("modalBackdrop")?.remove();
+}
+
+
+function generateQuickProductCode() {
+  return `P${Date.now()}`;
+}
+
+function resetQuickProductForm() {
+  const codigo = document.getElementById("pCodigo");
+  const nombre = document.getElementById("pNombre");
+  const categoria = document.getElementById("pCategoria");
+  const precio = document.getElementById("pPrecio");
+  const stock = document.getElementById("pStock");
+  const minimo = document.getElementById("pMinimo");
+  const activo = document.getElementById("pActivo");
+  if (codigo) codigo.value = generateQuickProductCode();
+  if (nombre) nombre.value = "";
+  if (categoria) categoria.value = "General";
+  if (precio) precio.value = "0";
+  if (stock) stock.value = "0";
+  if (minimo) minimo.value = "0";
+  if (activo) activo.checked = true;
 }
 
 function fileToDataUrl(file) {
