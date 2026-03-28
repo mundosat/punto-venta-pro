@@ -133,9 +133,3 @@ img{max-width:100%}
   .sidebar{position:relative;height:auto}
   .grid-4,.grid-3,.grid-2,.pos-layout{grid-template-columns:1fr}
 }
-
-
-.btn[disabled]{
-  opacity:.65;
-  cursor:not-allowed;
-}
