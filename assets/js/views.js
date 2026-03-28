@@ -347,10 +347,10 @@ export function renderUsuarios({ users = [] }) {
   `).join("");
 
   return `
-    ${topbar("Usuarios", `<button class="btn btn-primary" id="btnNuevoUsuario">Nuevo / vincular usuario</button>`)}
+    ${topbar("Usuarios", `<button class="btn btn-primary" id="btnNuevoUsuario">Nuevo usuario automático</button>`)}
     <section class="card">
       <div class="alert alert-info">
-        Los usuarios deben existir primero en Firebase Authentication. Aquí vinculas el UID con nombre, correo y rol.
+        Desde aquí puedes crear usuarios automáticamente. El sistema genera el usuario en Authentication y también lo guarda en Firestore sin pedir UID manual.
       </div>
       <div class="table-wrap mt16">
         <table class="table">

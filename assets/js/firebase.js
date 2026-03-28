@@ -1,12 +1,13 @@
-// 🔥 Firebase SDKs (CDN)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+// Firebase SDKs (CDN)
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
   getAuth,
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updatePassword
+  updatePassword,
+  createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
@@ -27,25 +28,47 @@ import {
   Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// 🔧 Configuración de tu proyecto Firebase
 import { firebaseConfig } from "./firebase-config.js";
 
-// 🚀 Inicializar Firebase
-const app = initializeApp(firebaseConfig);
+const MAIN_APP_NAME = "[DEFAULT]";
+const SECONDARY_APP_NAME = "pv-admin-create-user";
 
-// 🔐 Auth
+const app = getApps().some(a => a.name === MAIN_APP_NAME)
+  ? getApp()
+  : initializeApp(firebaseConfig);
+
 const auth = getAuth(app);
-
-// 🗄️ Firestore
 const db = getFirestore(app);
 
-// 📦 Exportar TODO para usar en el sistema
+function getSecondaryAuth() {
+  const secondaryApp = getApps().some(a => a.name === SECONDARY_APP_NAME)
+    ? getApp(SECONDARY_APP_NAME)
+    : initializeApp(firebaseConfig, SECONDARY_APP_NAME);
+  return getAuth(secondaryApp);
+}
+
+export async function createManagedUser({ email, password, nombre, rol, activo }) {
+  const secondaryAuth = getSecondaryAuth();
+  const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+  const user = cred.user;
+
+  await setDoc(doc(db, "usuarios", user.uid), {
+    nombre,
+    email,
+    rol,
+    activo,
+    creadoEn: serverTimestamp(),
+    actualizadoEn: serverTimestamp()
+  }, { merge: true });
+
+  await signOut(secondaryAuth);
+  return user;
+}
+
 export {
   app,
   auth,
   db,
-
-  // Firestore
   collection,
   doc,
   getDoc,
@@ -60,8 +83,6 @@ export {
   limit,
   serverTimestamp,
   Timestamp,
-
-  // Auth
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,

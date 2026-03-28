@@ -1,5 +1,5 @@
 import {
-  auth, signInWithEmailAndPassword, signOut, onAuthStateChanged
+  auth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createManagedUser
 } from "./firebase.js";
 import { state } from "./state.js";
 import {
@@ -12,11 +12,21 @@ import {
   renderInicio, renderCaja, renderVentas, renderProductos, renderKardex,
   renderUsuarios, renderReportes, renderConfiguracion
 } from "./views.js";
-import { state as appState } from "./state.js";
 import { printTicket } from "./ticket.js";
 import { toNumber, formatDateTime, escapeHtml, csvFromRows, downloadTextFile, readFileAsText, parseCsv } from "./utils.js";
 
 const app = document.getElementById("app");
+
+function isAdmin() {
+  return state.userProfile?.rol === "admin";
+}
+
+function canAccess(view) {
+  if (["productos", "kardex", "usuarios", "configuracion"].includes(view)) {
+    return isAdmin();
+  }
+  return true;
+}
 
 onAuthStateChanged(auth, async (user) => {
   state.currentUser = user;
@@ -75,6 +85,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
 async function renderApp() {
   state.currentView = (window.location.hash.replace("#", "") || "inicio");
+  if (!canAccess(state.currentView)) {
+    state.currentView = "inicio";
+    window.location.hash = "#inicio";
+    alert("Tu rol no tiene acceso a esa pantalla.");
+  }
   let content = "";
   const view = state.currentView;
 
@@ -117,10 +132,10 @@ function bindGlobal() {
 function bindViewActions(view) {
   if (view === "caja") bindCaja();
   if (view === "ventas") bindVentas();
-  if (view === "productos") bindProductos();
-  if (view === "usuarios") bindUsuarios();
+  if (view === "productos" && isAdmin()) bindProductos();
+  if (view === "usuarios" && isAdmin()) bindUsuarios();
   if (view === "reportes") bindReportes();
-  if (view === "configuracion") bindConfiguracion();
+  if (view === "configuracion" && isAdmin()) bindConfiguracion();
 }
 
 async function getSessionSales() {
@@ -567,59 +582,95 @@ function bindUsuarios() {
   if (btn) btn.onclick = () => showUserModal();
 
   document.querySelectorAll("[data-edit-user]").forEach(btn => {
-    btn.onclick = () => {
+    btn.onclick = async () => {
       const id = btn.getAttribute("data-edit-user");
-      showUserModal(id ? { id } : null);
+      const users = await listUsers().catch(() => []);
+      const user = users.find(u => u.id === id);
+      showUserModal(user || { id });
     };
   });
 }
 
 function showUserModal(user = null) {
+  const isEdit = !!user?.id;
   document.body.insertAdjacentHTML("beforeend", modalShell(`
-    <h3 class="m0">${user ? "Editar usuario" : "Vincular usuario"}</h3>
-    <div class="alert alert-info mt16">Usa el UID real del usuario creado en Firebase Authentication.</div>
-    <div class="form-group mt16"><label>UID</label><input class="input" id="uId" value="${escapeHtml(user?.id || "")}" ${user ? "readonly" : ""}/></div>
-    <div class="form-group"><label>Nombre</label><input class="input" id="uNombre" /></div>
-    <div class="form-group"><label>Correo</label><input class="input" id="uEmail" type="email" /></div>
+    <h3 class="m0">${isEdit ? "Editar usuario" : "Nuevo usuario automático"}</h3>
+    <div class="alert alert-info mt16">
+      ${isEdit
+        ? "Aquí puedes actualizar nombre, rol y estado del usuario ya registrado."
+        : "Escribe nombre, correo y contraseña. El sistema creará el usuario en Firebase Authentication y guardará su perfil automáticamente en Firestore."}
+    </div>
+    ${isEdit ? `<div class="form-group mt16"><label>UID</label><input class="input" id="uId" value="${escapeHtml(user?.id || "")}" readonly /></div>` : ""}
+    <div class="form-group mt16"><label>Nombre</label><input class="input" id="uNombre" value="${escapeHtml(user?.nombre || "")}" /></div>
+    <div class="form-group"><label>Correo</label><input class="input" id="uEmail" type="email" value="${escapeHtml(user?.email || "")}" ${isEdit ? "readonly" : ""} /></div>
+    ${!isEdit ? `<div class="form-group"><label>Contraseña</label><input class="input" id="uPassword" type="password" minlength="6" placeholder="Mínimo 6 caracteres" /></div>` : ""}
     <div class="grid grid-2">
       <div class="form-group">
         <label>Rol</label>
         <select class="select" id="uRol">
-          <option value="admin">admin</option>
-          <option value="cajero">cajero</option>
+          <option value="admin" ${user?.rol === "admin" ? "selected" : ""}>admin</option>
+          <option value="cajero" ${user?.rol === "cajero" ? "selected" : ""}>cajero</option>
         </select>
       </div>
       <div class="form-group">
         <label>Activo</label>
         <select class="select" id="uActivo">
-          <option value="true">Sí</option>
-          <option value="false">No</option>
+          <option value="true" ${user?.activo !== false ? "selected" : ""}>Sí</option>
+          <option value="false" ${user?.activo === false ? "selected" : ""}>No</option>
         </select>
       </div>
     </div>
     <div class="toolbar mt16">
-      <button class="btn btn-primary" id="saveUserModal">Guardar</button>
+      <button class="btn btn-primary" id="saveUserModal">${isEdit ? "Guardar cambios" : "Crear usuario"}</button>
       <button class="btn btn-secondary" id="cancelModal">Cancelar</button>
     </div>
   `));
   document.getElementById("cancelModal").onclick = closeModal;
   document.getElementById("saveUserModal").onclick = async () => {
-    const id = document.getElementById("uId").value.trim();
     const nombre = document.getElementById("uNombre").value.trim();
     const email = document.getElementById("uEmail").value.trim();
     const rol = document.getElementById("uRol").value;
     const activo = document.getElementById("uActivo").value === "true";
-    if (!id || !nombre || !email) return alert("Completa todos los campos.");
-    await saveUser(id, {
-      nombre, email, rol, activo,
-      creadoEn: new Date()
-    });
+
+    if (!nombre || !email) return alert("Completa todos los campos.");
+
+    if (isEdit) {
+      await saveUser(user.id, {
+        nombre,
+        email,
+        rol,
+        activo,
+        actualizadoEn: new Date()
+      });
+      alert("Usuario actualizado correctamente.");
+    } else {
+      const password = document.getElementById("uPassword").value;
+      if (!password || password.length < 6) {
+        return alert("La contraseña debe tener al menos 6 caracteres.");
+      }
+      try {
+        await createManagedUser({
+          email,
+          password,
+          nombre,
+          rol,
+          activo
+        });
+        alert("Usuario creado automáticamente.");
+      } catch (error) {
+        console.error(error);
+        alert("No se pudo crear el usuario: " + (error?.message || error));
+        return;
+      }
+    }
+
     closeModal();
     await renderApp();
   };
 }
 
 function bindReportes() {
+
   const btnVentas = document.getElementById("btnExportVentasCSV");
   if (btnVentas) {
     btnVentas.onclick = async () => {

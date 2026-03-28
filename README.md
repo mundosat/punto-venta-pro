@@ -142,3 +142,17 @@ Mantener:
 - no subir archivos grandes
 - no usar Storage ni Functions
 
+
+
+## Mejoras NIVEL PRO
+
+- Creación automática de usuarios desde la pantalla Usuarios
+- Roles visuales: admin y cajero
+- Menú protegido según el rol
+- Edición de usuarios sin tocar Authentication manualmente
+- Sigue funcionando en GitHub Pages con Firebase Spark
+
+### Importante sobre usuarios automáticos
+
+Para crear usuarios desde el sistema, debes iniciar sesión como **admin**.
+El sistema crea el usuario en Firebase Authentication usando una app secundaria y luego guarda su perfil en Firestore con el UID correcto.
