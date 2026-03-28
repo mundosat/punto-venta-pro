@@ -3,7 +3,7 @@ import {
 } from "./firebase.js";
 import { state } from "./state.js";
 import {
-  getConfig, getUserProfile, listProducts, createProduct, updateProduct, deleteProduct, deleteOldSales, adjustStock, listKardex,
+  getConfig, getUserProfile, listProducts, createProduct, updateProduct, adjustStock, listKardex,
   listUsers, saveUser, listSales, getNextSaleNumber, createSale,
   getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig
 } from "./api.js";
@@ -428,24 +428,6 @@ function bindProductos() {
     };
   });
 
-  document.querySelectorAll("[data-delete-product]").forEach(btn => {
-    btn.onclick = async () => {
-      const id = btn.getAttribute("data-delete-product");
-      const product = state.products.find(p => p.id === id);
-      if (!product) return;
-      if (!confirm(`¿Eliminar definitivamente el producto "${product.nombre}"?`)) return;
-      try {
-        await deleteProduct(id);
-        state.products = await listProducts();
-        await renderApp();
-        alert("Producto eliminado correctamente.");
-      } catch (error) {
-        console.error(error);
-        alert("No se pudo eliminar el producto.");
-      }
-    };
-  });
-
   const search = document.getElementById("buscarProductoTabla");
   if (search) {
     search.oninput = () => {
@@ -458,23 +440,6 @@ function bindProductos() {
 
   const importBtn = document.getElementById("btnImportarProductos");
   if (importBtn) importBtn.onclick = showImportProductsModal;
-
-  const exportBtn = document.getElementById("btnExportProductosExcel");
-  if (exportBtn) {
-    exportBtn.onclick = () => {
-      const rows = [["codigo","nombre","categoria","precio","stock","minimo","activo"]];
-      state.products.forEach(p => rows.push([
-        p.codigo || "",
-        p.nombre || "",
-        p.categoria || "",
-        Number(p.precio || 0).toFixed(2),
-        Number(p.stock || 0),
-        Number(p.minimo || 0),
-        p.activo !== false ? "true" : "false"
-      ]));
-      downloadTextFile("productos.xls", rows.map(r => r.join("\t")).join("\n"), "application/vnd.ms-excel;charset=utf-8");
-    };
-  }
 }
 
 function showProductModal(product = null) {
@@ -720,21 +685,6 @@ function bindReportes() {
       downloadTextFile("reporte_productos.csv", csvFromRows(rows), "text/csv;charset=utf-8");
     };
   }
-
-  const btnCleanSales = document.getElementById("btnLimpiarVentasAntiguas");
-  if (btnCleanSales) {
-    btnCleanSales.onclick = async () => {
-      if (!confirm("¿Eliminar ventas con más de 30 días? Esta acción no se puede deshacer.")) return;
-      try {
-        const deleted = await deleteOldSales(30);
-        alert(deleted ? `Se eliminaron ${deleted} ventas antiguas.` : "No había ventas antiguas para eliminar.");
-        await renderApp();
-      } catch (error) {
-        console.error(error);
-        alert("No se pudieron limpiar las ventas antiguas.");
-      }
-    };
-  }
 }
 
 function bindConfiguracion() {
@@ -796,3 +746,36 @@ function fileToDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
+
+
+function agregarVentaRapida() {
+  const n = document.getElementById("vr_nombre")?.value;
+  const p = parseFloat(document.getElementById("vr_precio")?.value);
+  const c = parseInt(document.getElementById("vr_cantidad")?.value || "1");
+
+  if (!n || isNaN(p)) {
+    alert("Completa nombre y precio");
+    return;
+  }
+
+  const item = {
+    id: "manual_" + Date.now(),
+    nombre: n,
+    precio: p,
+    cantidad: c,
+    subtotal: p * c
+  };
+
+  if (!state.cart) state.cart = [];
+  state.cart.push(item);
+  renderApp();
+
+  document.getElementById("vr_nombre").value = "";
+  document.getElementById("vr_precio").value = "";
+  document.getElementById("vr_cantidad").value = 1;
+}
+
+
+
+  const btnVR = document.getElementById("btnVentaRapida");
+  if (btnVR) btnVR.onclick = agregarVentaRapida;

@@ -134,8 +134,8 @@ img{max-width:100%}
   .grid-4,.grid-3,.grid-2,.pos-layout{grid-template-columns:1fr}
 }
 
-
-.btn[disabled]{
-  opacity:.65;
-  cursor:not-allowed;
+#vr_nombre,#vr_precio,#vr_cantidad{
+  width:100%;
+  margin:6px 0;
+  padding:8px;
 }

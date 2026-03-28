@@ -191,7 +191,16 @@ export function renderVentas({ products = [], cart = [] }) {
 
   return `
     ${topbar("Ventas", `
-      <button class="btn btn-secondary" id="btnLimpiarCarrito">Vaciar carrito</button>
+      <button class="btn btn-secondary" id="btnLimpiar
+      <div class="card">
+        <h3>⚡ Venta rápida</h3>
+        <input type="text" id="vr_nombre" placeholder="Nombre producto">
+        <input type="number" id="vr_precio" placeholder="Precio">
+        <input type="number" id="vr_cantidad" placeholder="Cantidad" value="1">
+        <button class="btn btn-primary" id="btnVentaRapida">➕ Agregar</button>
+      </div>
+
+      Carrito">Vaciar carrito</button>
     `)}
 
     <div class="pos-layout">
@@ -257,7 +266,6 @@ export function renderProductos({ products = [] }) {
       <td class="right">
         <button class="btn btn-secondary btn-sm" data-edit-product="${p.id}">Editar</button>
         <button class="btn btn-warning btn-sm" data-adjust-stock="${p.id}">Ajustar stock</button>
-        <button class="btn btn-danger btn-sm" data-delete-product="${p.id}">Eliminar</button>
       </td>
     </tr>
   `).join("");
@@ -265,7 +273,6 @@ export function renderProductos({ products = [] }) {
   return `
     ${topbar("Productos", `
       <button class="btn btn-secondary" id="btnImportarProductos">Importar CSV</button>
-      <button class="btn btn-secondary" id="btnExportProductosExcel">Exportar Excel</button>
       <button class="btn btn-primary" id="btnNuevoProducto">Nuevo producto</button>
     `)}
     <section class="card">
@@ -413,7 +420,6 @@ export function renderReportes({ sales = [], products = [] }) {
     ${topbar("Reportes", `
       <button class="btn btn-secondary" id="btnExportVentasCSV">Exportar ventas CSV</button>
       <button class="btn btn-secondary" id="btnExportProductosCSV">Exportar productos CSV</button>
-      <button class="btn btn-danger" id="btnLimpiarVentasAntiguas">Limpiar ventas > 30 días</button>
     `)}
 
     <div class="grid grid-4">
