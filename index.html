@@ -14,48 +14,5 @@
   </div>
 
   <script type="module" src="assets/js/app.js"></script>
-
-<!-- BOTON CALCULADORA -->
-<button id="btnCalculadora" onclick="toggleCalculadora()" style="position:fixed;bottom:20px;right:20px;background:#00c853;color:white;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;z-index:999;">🧮</button>
-
-<div id="calculadora" style="display:none;position:fixed;bottom:90px;right:20px;z-index:999;background:#0d1b2a;padding:15px;border-radius:12px;width:220px;">
-  <input type="text" id="calcDisplay" disabled style="width:100%;height:40px;margin-bottom:10px;text-align:right;">
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
-    <button onclick="calc('7')">7</button>
-    <button onclick="calc('8')">8</button>
-    <button onclick="calc('9')">9</button>
-    <button onclick="calc('/')">÷</button>
-
-    <button onclick="calc('4')">4</button>
-    <button onclick="calc('5')">5</button>
-    <button onclick="calc('6')">6</button>
-    <button onclick="calc('*')">×</button>
-
-    <button onclick="calc('1')">1</button>
-    <button onclick="calc('2')">2</button>
-    <button onclick="calc('3')">3</button>
-    <button onclick="calc('-')">-</button>
-
-    <button onclick="calc('0')">0</button>
-    <button onclick="calc('.')">.</button>
-    <button onclick="resultado()">=</button>
-    <button onclick="calc('+')">+</button>
-
-    <button onclick="limpiar()" style="grid-column:span 2;">C</button>
-    <button onclick="limpiar()" style="grid-column:span 2;background:#00c853;color:white;">Agregar</button>
-  </div>
-</div>
-
-<script>
-let display = "";
-function toggleCalculadora(){
-  const c=document.getElementById('calculadora');
-  c.style.display = c.style.display==='none'?'block':'none';
-}
-function calc(v){display+=v;document.getElementById('calcDisplay').value=display;}
-function limpiar(){display="";document.getElementById('calcDisplay').value="";}
-function resultado(){try{display=eval(display).toString();document.getElementById('calcDisplay').value=display;}catch{alert('Error');}}
-</script>
-
 </body>
 </html>

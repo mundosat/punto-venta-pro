@@ -16,6 +16,8 @@ export const state = {
   },
   currentView: "inicio",
   products: [],
+  clients: [],
+  selectedClientId: "final",
   cart: [],
   activeCashSession: null
 };

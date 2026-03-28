@@ -5,7 +5,8 @@ import { state } from "./state.js";
 import {
   getConfig, getUserProfile, listProducts, createProduct, updateProduct, adjustStock, listKardex,
   listUsers, saveUser, listSales, getNextSaleNumber, createSale,
-  getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig
+  getOpenCashSession, openCashSession, closeCashSession, createCashMovement, listCashMovements, saveConfig,
+  listClients, createClient
 } from "./api.js";
 import { renderLogin, renderLayout, modalShell } from "./ui.js";
 import {
@@ -46,6 +47,7 @@ async function refreshBootstrap() {
   if (state.userProfile) state.userProfile.id = state.currentUser.uid;
   await getConfig();
   state.products = await listProducts().catch(() => []);
+  state.clients = await listClients().catch(() => []);
   state.activeCashSession = await getOpenCashSession().catch(() => null);
 }
 
@@ -98,7 +100,7 @@ async function renderApp() {
     const sales = await getSessionSales();
     content = renderCaja({ session: state.activeCashSession, movements, sales });
   } else if (view === "ventas") {
-    content = renderVentas({ products: state.products, cart: state.cart });
+    content = renderVentas({ products: state.products, cart: state.cart, clients: state.clients, selectedClientId: state.selectedClientId });
   } else if (view === "productos") {
     content = renderProductos({ products: state.products });
   } else if (view === "kardex") {
@@ -223,6 +225,21 @@ function showOpenCashModal() {
 }
 
 function bindVentas() {
+  const clientSelect = document.getElementById("clienteVenta");
+  if (clientSelect) {
+    clientSelect.onchange = () => {
+      state.selectedClientId = clientSelect.value || "final";
+    };
+  }
+
+  const btnRegistrarCliente = document.getElementById("btnRegistrarCliente");
+  if (btnRegistrarCliente) btnRegistrarCliente.onclick = () => showClientModal();
+
+  const quickSaleBtn = document.getElementById("btnAgregarVentaRapida");
+  if (quickSaleBtn) quickSaleBtn.onclick = () => addQuickSaleToCart();
+
+  setupCalculator();
+
   document.querySelectorAll("[data-add-product]").forEach(btn => {
     btn.onclick = () => {
       const id = btn.getAttribute("data-add-product");
@@ -293,6 +310,117 @@ function bindVentas() {
       });
     };
   }
+
+  ["ventaRapidaNombre", "ventaRapidaPrecio", "ventaRapidaCantidad"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.onkeydown = (e) => {
+      if (e.key === "Enter") addQuickSaleToCart();
+    };
+  });
+}
+
+
+
+function addQuickSaleToCart() {
+  const nombre = document.getElementById("ventaRapidaNombre")?.value.trim() || "Venta rápida";
+  const precio = toNumber(document.getElementById("ventaRapidaPrecio")?.value);
+  const cantidad = Math.max(1, Math.floor(toNumber(document.getElementById("ventaRapidaCantidad")?.value) || 1));
+  if (precio <= 0) return alert("Ingresa un precio válido.");
+  const uniqueId = `quick_${Date.now()}`;
+  state.cart.push({
+    id: uniqueId,
+    productoId: null,
+    codigo: "VR",
+    nombre,
+    cantidad,
+    precio,
+    total: precio * cantidad,
+    esVentaRapida: true
+  });
+  const nombreInput = document.getElementById("ventaRapidaNombre");
+  const precioInput = document.getElementById("ventaRapidaPrecio");
+  const cantidadInput = document.getElementById("ventaRapidaCantidad");
+  if (nombreInput) nombreInput.value = "";
+  if (precioInput) precioInput.value = "";
+  if (cantidadInput) cantidadInput.value = 1;
+  renderApp();
+}
+
+function setupCalculator() {
+  const panel = document.getElementById("calcPanel");
+  const toggle = document.getElementById("btnToggleCalc");
+  const display = document.getElementById("calcDisplay");
+  if (!panel || !toggle || !display) return;
+  let expr = "";
+  const refresh = () => display.textContent = expr || "0";
+  toggle.onclick = () => panel.classList.toggle("hidden");
+  document.querySelectorAll(".calc-btn[data-calc-value]").forEach(btn => {
+    btn.onclick = () => { expr += btn.getAttribute("data-calc-value"); refresh(); };
+  });
+  document.querySelectorAll(".calc-btn[data-calc-action]").forEach(btn => {
+    btn.onclick = () => {
+      const action = btn.getAttribute("data-calc-action");
+      if (action === "clear") expr = "";
+      if (action === "back") expr = expr.slice(0, -1);
+      if (action === "equals") {
+        try {
+          if (!expr.trim()) return;
+          expr = String(Function(`"use strict"; return (${expr})`)());
+        } catch {
+          alert("Operación no válida.");
+        }
+      }
+      refresh();
+    };
+  });
+  const btnUse = document.getElementById("btnCalcToQuickSale");
+  if (btnUse) btnUse.onclick = () => {
+    const precioInput = document.getElementById("ventaRapidaPrecio");
+    if (precioInput) precioInput.value = expr || "";
+    panel.classList.add("hidden");
+  };
+  refresh();
+}
+
+function showClientModal() {
+  document.body.insertAdjacentHTML("beforeend", modalShell(`
+    <h3 class="m0">Registrar cliente</h3>
+    <div class="grid grid-2 mt16">
+      <div class="form-group"><label>Nombre</label><input class="input" id="cNombre" placeholder="Nombre completo" /></div>
+      <div class="form-group"><label>Cédula / RUC</label><input class="input" id="cIdentificacion" placeholder="Identificación" /></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="form-group"><label>Teléfono</label><input class="input" id="cTelefono" placeholder="0999999999" /></div>
+      <div class="form-group"><label>Correo</label><input class="input" id="cEmail" placeholder="cliente@correo.com" /></div>
+    </div>
+    <div class="form-group"><label>Dirección</label><input class="input" id="cDireccion" placeholder="Dirección" /></div>
+    <div class="toolbar mt16">
+      <button class="btn btn-primary" id="btnGuardarClienteModal">Guardar cliente</button>
+      <button class="btn btn-secondary" id="cancelModal">Cancelar</button>
+    </div>
+  `));
+  document.getElementById("cancelModal").onclick = closeModal;
+  document.getElementById("btnGuardarClienteModal").onclick = async () => {
+    try {
+      const nombre = document.getElementById("cNombre").value.trim();
+      if (!nombre) return alert("Ingresa el nombre del cliente.");
+      await createClient({
+        nombre,
+        identificacion: document.getElementById("cIdentificacion").value.trim(),
+        telefono: document.getElementById("cTelefono").value.trim(),
+        email: document.getElementById("cEmail").value.trim(),
+        direccion: document.getElementById("cDireccion").value.trim()
+      });
+      state.clients = await listClients().catch(() => []);
+      const found = state.clients.find(c => c.nombre === nombre);
+      if (found) state.selectedClientId = found.id;
+      closeModal();
+      await renderApp();
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo guardar el cliente.");
+    }
+  };
 }
 
 function addToCart(product) {
@@ -323,7 +451,7 @@ function changeQty(id, delta) {
     state.cart = state.cart.filter(i => i.id !== id);
     return;
   }
-  if (next > Number(product.stock || 0)) return alert("Stock insuficiente.");
+  if (product && next > Number(product.stock || 0)) return alert("Stock insuficiente.");
   item.cantidad = next;
   item.total = item.cantidad * item.precio;
 }
@@ -344,7 +472,10 @@ async function chargeSale(imprimir) {
   try {
     if (!state.activeCashSession) return alert("Debes abrir la caja antes de cobrar.");
     if (!state.cart.length) return alert("Agrega productos al carrito.");
-    const cliente = document.getElementById("clienteVenta")?.value.trim() || "Consumidor Final";
+    const clienteSeleccionado = state.selectedClientId === "final"
+      ? null
+      : state.clients.find(c => c.id === state.selectedClientId) || null;
+    const cliente = clienteSeleccionado?.nombre || "Consumidor Final";
     const pagadoCon = toNumber(document.getElementById("pagadoCon")?.value);
     const subtotal = cartSubtotal();
     const impuesto = cartTax();
@@ -354,6 +485,7 @@ async function chargeSale(imprimir) {
     const numero = await getNextSaleNumber();
 
     for (const item of state.cart) {
+      if (item.esVentaRapida) continue;
       const product = state.products.find(p => p.id === item.productoId);
       if (!product) throw new Error("Producto no encontrado");
       if (Number(product.stock || 0) < Number(item.cantidad || 0)) {
@@ -366,6 +498,11 @@ async function chargeSale(imprimir) {
       usuarioId: state.userProfile.id,
       usuarioNombre: state.userProfile.nombre,
       cliente,
+      clienteId: clienteSeleccionado?.id || "final",
+      clienteIdentificacion: clienteSeleccionado?.identificacion || "",
+      clienteTelefono: clienteSeleccionado?.telefono || "",
+      clienteDireccion: clienteSeleccionado?.direccion || "",
+      clienteEmail: clienteSeleccionado?.email || "",
       subtotal,
       impuesto,
       total,
@@ -385,6 +522,7 @@ async function chargeSale(imprimir) {
     const ref = await createSale(salePayload);
 
     for (const item of state.cart) {
+      if (item.esVentaRapida) continue;
       const product = state.products.find(p => p.id === item.productoId);
       await adjustStock(product, -Number(item.cantidad || 0), "venta", `venta_${String(numero).padStart(6, "0")}`, state.userProfile);
       product.stock = Number(product.stock || 0) - Number(item.cantidad || 0);
